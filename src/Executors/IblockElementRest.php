@@ -14,6 +14,7 @@ use Emonkak\HttpException\AccessDeniedHttpException;
 use Emonkak\HttpException\BadRequestHttpException;
 use Emonkak\HttpException\InternalServerErrorHttpException;
 use Emonkak\HttpException\NotFoundHttpException;
+use goldencode\Helpers\Bitrix\IblockUtility;
 use Exception;
 
 class IblockElementRest implements IExecutor {
@@ -23,6 +24,7 @@ class IblockElementRest implements IExecutor {
 	}
 
 	protected $iblockId;
+	protected $elementId;
 	protected $prices = [];
 
 	private $catalog = false;
@@ -102,6 +104,21 @@ class IblockElementRest implements IExecutor {
 	}
 
 	public function readMany() {
+
+		if ($this->$elementId) {
+			$rsObject = CIBlockElement::GetProperty(
+				IblockUtility::getIblockIdByCode('catalog'),
+				$this->$elementId,
+				array(),
+				array()
+			);
+
+			while($arObject = $rsObject->Fetch()) {
+			$propCode = 'PROPERTY_' . $arObject['CODE'];
+			array_push($this->select, $propCode);
+			}
+		}
+
 		$query = CIBlockElement::GetList(
 			$this->order,
 			$this->filter,
@@ -120,6 +137,7 @@ class IblockElementRest implements IExecutor {
 
 	public function readOne($id) {
 		$this->registerOneItemTransformHandler();
+		$this->$elementId = $id;
 
 		// Set id to filter
 		if (is_numeric($id)) {
