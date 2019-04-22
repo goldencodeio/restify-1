@@ -1,5 +1,5 @@
 {
-  "name": "spaceonfire/restify",
+  "name": "goldencodeio/restify-shop",
   "description": "Bitrix REST API module",
   "keywords": ["bitrix", "rest", "api", "rest-api"],
   "type": "bitrix-d7-module",
