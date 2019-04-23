@@ -12,6 +12,7 @@ use CPrice;
 use Emonkak\HttpException\BadRequestHttpException;
 use Emonkak\HttpException\InternalServerErrorHttpException;
 use Emonkak\HttpException\NotFoundHttpException;
+use goldencode\Helpers\Bitrix\IblockUtility;
 use Exception;
 
 class CatalogCompareRest implements IExecutor {
@@ -115,6 +116,18 @@ class CatalogCompareRest implements IExecutor {
 
 	public function add($id) {
 		$this->registerOneItemTransformHandler();
+
+		$rsObject = CIBlockElement::GetProperty(
+			IblockUtility::getIblockIdByCode('catalog'),
+			$id,
+			array(),
+			array()
+		);
+
+		while($arObject = $rsObject->Fetch()) {
+		$propCode = 'PROPERTY_' . $arObject['CODE'];
+		array_push($this->select, $propCode);
+		}
 
 		$element = CIBlockElement::GetList(
 			[],
@@ -250,68 +263,68 @@ class CatalogCompareRest implements IExecutor {
 		);
 	}
 
-	public function iblockTransform(Event $event) {
-		$params = $event->getParameters();
-
-		if (empty($params['result'])) {
-			throw new BadRequestHttpException(Loc::getMessage('CATALOG_COMPARE_EMPTY', [
-				'#COMPARE_NAME#' => $this->name,
-			]));
-		}
-
-		// Properties
-		$propsFilter = [
-			'ACTIVE' => 'Y',
-			'IBLOCK_ID' => $this->iblockId,
-		];
-		if (!empty($this->properties)) {
-			$propsFilter['CODE'] = $this->properties;
-		}
-
-		$properties = PropertyTable::getList([
-			'select' => [
-				'ID',
-				'NAME',
-				'CODE',
-				'PROPERTY_TYPE',
-				'MULTIPLE',
-				'LINK_IBLOCK_ID',
-				'USER_TYPE',
-				'USER_TYPE_SETTINGS',
-			],
-			'filter' => $propsFilter,
-			'order' => ['SORT' => 'ASC']
-		])->fetchAll();
-
-		$propertySelect = array_map(function ($prop) { return 'PROPERTY_' . $prop['ID']; }, $properties);
-		$propertySelect[] = 'ID';
-
-		$propertyQ = CIBlockElement::GetList(
-			[],
-			[
-				'ID' => array_map(function ($item) { return $item['ID']; }, $params['result']),
-				'IBLOCK_ID' => $this->iblockId,
-			],
-			false,
-			false,
-			$propertySelect
-		);
-
-		$propVals = [];
-		while ($propVal = $propertyQ->Fetch()) {
-			unset($propVal['IBLOCK_ELEMENT_ID']);
-			$propVals[$propVal['ID']] = $propVal;
-		}
-
-		$params['result'] = [
-			'items' => $params['result'],
-			'properties' => $properties,
-		];
-
-		foreach ($params['result']['items'] as $key => $item) {
-			$props = $propVals[$item['ID']];
-			$item = array_merge($item, $props);
-			$params['result']['items'][$key] = $item;
-		}
-	}
+	// public function iblockTransform(Event $event) {
+	// 	$params = $event->getParameters();
+	//
+	// 	if (empty($params['result'])) {
+	// 		throw new BadRequestHttpException(Loc::getMessage('CATALOG_COMPARE_EMPTY', [
+	// 			'#COMPARE_NAME#' => $this->name,
+	// 		]));
+	// 	}
+	//
+	// 	// Properties
+	// 	$propsFilter = [
+	// 		'ACTIVE' => 'Y',
+	// 		'IBLOCK_ID' => $this->iblockId,
+	// 	];
+	// 	if (!empty($this->properties)) {
+	// 		$propsFilter['CODE'] = $this->properties;
+	// 	}
+	//
+	// 	$properties = PropertyTable::getList([
+	// 		'select' => [
+	// 			'ID',
+	// 			'NAME',
+	// 			'CODE',
+	// 			'PROPERTY_TYPE',
+	// 			'MULTIPLE',
+	// 			'LINK_IBLOCK_ID',
+	// 			'USER_TYPE',
+	// 			'USER_TYPE_SETTINGS',
+	// 		],
+	// 		'filter' => $propsFilter,
+	// 		'order' => ['SORT' => 'ASC']
+	// 	])->fetchAll();
+	//
+	// 	$propertySelect = array_map(function ($prop) { return 'PROPERTY_' . $prop['ID']; }, $properties);
+	// 	$propertySelect[] = 'ID';
+	//
+	// 	$propertyQ = CIBlockElement::GetList(
+	// 		[],
+	// 		[
+	// 			'ID' => array_map(function ($item) { return $item['ID']; }, $params['result']),
+	// 			'IBLOCK_ID' => $this->iblockId,
+	// 		],
+	// 		false,
+	// 		false,
+	// 		$propertySelect
+	// 	);
+	//
+	// 	$propVals = [];
+	// 	while ($propVal = $propertyQ->Fetch()) {
+	// 		unset($propVal['IBLOCK_ELEMENT_ID']);
+	// 		$propVals[$propVal['ID']] = $propVal;
+	// 	}
+	//
+	// 	$params['result'] = [
+	// 		'items' => $params['result'],
+	// 		'properties' => $properties,
+	// 	];
+	//
+	// 	foreach ($params['result']['items'] as $key => $item) {
+	// 		$props = $propVals[$item['ID']];
+	// 		$item = array_merge($item, $props);
+	// 		$params['result']['items'][$key] = $item;
+	// 	}
+	// }
 }
