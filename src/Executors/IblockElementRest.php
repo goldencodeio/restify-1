@@ -26,6 +26,7 @@ class IblockElementRest implements IExecutor {
 	protected $iblockId;
 	protected $elementId;
 	protected $prices = [];
+	public $propName = [];
 
 	private $catalog = false;
 	private $permissions = [];
@@ -104,8 +105,7 @@ class IblockElementRest implements IExecutor {
 	}
 
 	public function readMany() {
-
-		if ($this->$elementId) {
+		//if ($this->$elementId) {
 			$rsObject = CIBlockElement::GetProperty(
 				IblockUtility::getIblockIdByCode('catalog'),
 				$this->$elementId,
@@ -115,9 +115,11 @@ class IblockElementRest implements IExecutor {
 
 			while($arObject = $rsObject->Fetch()) {
 			$propCode = 'PROPERTY_' . $arObject['CODE'];
+			$propName['PROPERTY_' . $arObject['CODE']] = $arObject['NAME'];
+
 			array_push($this->select, $propCode);
 			}
-		}
+			//}
 
 		$query = CIBlockElement::GetList(
 			$this->order,
@@ -129,6 +131,10 @@ class IblockElementRest implements IExecutor {
 
 		$results = [];
 		while ($item = $query->GetNext(true, false)) {
+			foreach($propName as $key => $value){
+				$key = strtoupper($key);
+				$item[$key . '_VALUE'] = ["VALUE" => $item[$key . '_VALUE'], "NAME" => $value];
+			}
 			$results[] = $item;
 		}
 
