@@ -144,7 +144,7 @@ class IblockElementRest implements IExecutor {
 			array_push($this->select, $propCode);
 			}
 
-		$results = CIBlockElement::getListing();
+		$results = IblockElementRest::getListing();
 
 		return $results;
 	}
