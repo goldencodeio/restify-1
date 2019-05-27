@@ -129,7 +129,7 @@ class IblockElementRest implements IExecutor {
 	}
 
 	public function readMany() {
-			error_reporting( 2047 | E_ALL );
+		//if ($this->$elementId) {
 			$rsObject = CIBlockElement::GetProperty(
 				IblockUtility::getIblockIdByCode('catalog'),
 				$this->$elementId,
