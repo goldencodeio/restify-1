@@ -104,6 +104,30 @@ class IblockElementRest implements IExecutor {
 		return $this->readOne($id);
 	}
 
+	private function getListing() {
+		$results = [];
+		$chunk_length = 20;
+		$chunks = [];
+
+		$query = CIBlockElement::GetList(
+			$this->order,
+			$this->filter,
+			false,
+			$this->navParams,
+			$this->select
+		);
+
+		while ($item = $query->GetNext(true, false)) {
+			foreach($propName as $key => $value){
+				$key = strtoupper($key);
+				$item[$key . '_VALUE'] = ["VALUE" => $item[$key . '_VALUE'], "NAME" => $value];
+			}
+			$results[] = $item;
+		}
+
+		return $results;
+	}
+
 	public function readMany() {
 		//if ($this->$elementId) {
 			$rsObject = CIBlockElement::GetProperty(
@@ -119,24 +143,8 @@ class IblockElementRest implements IExecutor {
 
 			array_push($this->select, $propCode);
 			}
-			//}
 
-		$query = CIBlockElement::GetList(
-			$this->order,
-			$this->filter,
-			false,
-			$this->navParams,
-			$this->select
-		);
-
-		$results = [];
-		while ($item = $query->GetNext(true, false)) {
-			foreach($propName as $key => $value){
-				$key = strtoupper($key);
-				$item[$key . '_VALUE'] = ["VALUE" => $item[$key . '_VALUE'], "NAME" => $value];
-			}
-			$results[] = $item;
-		}
+		$results = CIBlockElement::getListing();
 
 		return $results;
 	}
