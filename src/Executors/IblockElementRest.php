@@ -117,10 +117,11 @@ class IblockElementRest implements IExecutor {
 
 			$code = strtoupper( $arObject['CODE'] );
 			$results[ "PROPERTY_" . $code . "_VALUE" ]
-				= [ 'VALUE'=> (
-						$arObject['VALUE_ENUM']
-						? $arObject['VALUE_ENUM']
-						: $arObject['VALUE']
+				= [ 'VALUE'=> json_encode( $arObject, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE )
+						.
+						$arObject['VALUE']
+						? $arObject['VALUE']
+						: $arObject['VALUE_ENUM']
 					),
 					'NAME' => $arObject['NAME']
 				];
