@@ -131,6 +131,9 @@ class IblockElementRest implements IExecutor {
 
 		$results = [];
 		while ($item = $query->GetNext(true, false)) {
+			$item = array_filter( $item, function( $item ){
+				return !is_null( $item );
+			});
 			foreach($propName as $key => $value){
 				$key = strtoupper($key);
 				$item[$key . '_VALUE'] = ["VALUE" => $item[$key . '_VALUE'], "NAME" => $value];
