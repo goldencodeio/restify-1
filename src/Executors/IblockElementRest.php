@@ -105,7 +105,40 @@ class IblockElementRest implements IExecutor {
 	}
 
 	public function readMany() {
-		return [];
+		//if ($this->$elementId) {
+			$rsObject = CIBlockElement::GetProperty(
+				IblockUtility::getIblockIdByCode('catalog'),
+				$this->$elementId,
+				array(),
+				array()
+			);
+
+			while($arObject = $rsObject->Fetch()) {
+			$propCode = 'PROPERTY_' . $arObject['CODE'];
+			$propName['PROPERTY_' . $arObject['CODE']] = $arObject['NAME'];
+
+			array_push($this->select, $propCode);
+			}
+			//}
+
+		$query = CIBlockElement::GetList(
+			$this->order,
+			$this->filter,
+			false,
+			$this->navParams,
+			[ 'NAME' ]
+		);
+
+		$results = [];
+		while ($item = $query->GetNext(true, false)) {
+			foreach($propName as $key => $value){
+				$key = strtoupper($key);
+				$item[$key . '_VALUE'] = ["VALUE" => $item[$key . '_VALUE'], "NAME" => $value];
+			}
+			$results[] = $item;
+		}
+
+		return $results;
 	}
 
 	public function readOne($id) {
