@@ -119,7 +119,8 @@ class IblockElementRest implements IExecutor {
 			$results[ "PROPERTY_" . $code . "_VALUE" ]
 				= [ 'VALUE'=> json_encode( $arObject, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE )
 						.
-						$arObject['VALUE']
+					(
+						!is_null( $arObject['VALUE'] )
 						? $arObject['VALUE']
 						: $arObject['VALUE_ENUM']
 					),
