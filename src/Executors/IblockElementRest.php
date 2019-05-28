@@ -151,7 +151,7 @@ class IblockElementRest implements IExecutor {
 				$key = strtoupper($key);
 				$item[$key . '_VALUE'] = ["VALUE" => $item[$key . '_VALUE'], "NAME" => $value];
 			}
-			$results[] = $item;
+			// $results[] = $item;
 		}
 
 		return $results;
