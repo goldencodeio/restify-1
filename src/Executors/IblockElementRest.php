@@ -1,5 +1,4 @@
 <?php
-
 namespace spaceonfire\Restify\Executors;
 
 use Bitrix\Main\Event;
@@ -116,15 +115,16 @@ class IblockElementRest implements IExecutor {
 			while($arObject = $rsObject->Fetch()) {
 
 			$code = strtoupper( $arObject['CODE'] );
-			$results[ "PROPERTY_" . $code . "_VALUE" ]
-				= [ 'VALUE'=> json_encode( $arObject, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE )
-						.
+			$results[] = [
+				[ "PROPERTY_" . $code . "_VALUE" ]
+				=> [ 'VALUE'=>
 					(
 						!is_null( $arObject['VALUE'] )
 						? $arObject['VALUE']
 						: $arObject['VALUE_ENUM']
 					),
 					'NAME' => $arObject['NAME']
+				]
 				];
 
 
@@ -151,7 +151,7 @@ class IblockElementRest implements IExecutor {
 				$key = strtoupper($key);
 				$item[$key . '_VALUE'] = ["VALUE" => $item[$key . '_VALUE'], "NAME" => $value];
 			}
-			// $results[] = $item;
+			$results[] = $item;
 		}
 
 		return $results;
@@ -365,3 +365,4 @@ class IblockElementRest implements IExecutor {
 		}
 	}
 }
+
