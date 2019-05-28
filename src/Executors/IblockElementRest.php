@@ -126,7 +126,7 @@ class IblockElementRest implements IExecutor {
 			$this->filter,
 			false,
 			$this->navParams,
-			$this->select
+			[ 'NAME' ]
 		);
 
 		$results = [];
