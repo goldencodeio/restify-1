@@ -142,18 +142,18 @@ class IblockElementRest implements IExecutor {
 			$this->filter,
 			false,
 			$this->navParams,
-			[ 'ID', 'NAME' ]
+			[ 'ID', 'IBLOCK_ID', 'NAME' ]
 		);
 
 		while ($item = $query->GetNext(true, false)) {
 			$item = array_filter( $item, function( $item ){
 				return !is_null( $item );
 			});
-			foreach($propName as $key => $value){
-				$key = strtoupper($key);
-				$item[$key . '_VALUE'] = ["VALUE" => $item[$key . '_VALUE'], "NAME" => $value];
-			}
-			// $results[] = $item;
+			// foreach($propName as $key => $value){
+			// 	$key = strtoupper($key);
+			// 	$item[$key . '_VALUE'] = ["VALUE" => $item[$key . '_VALUE'], "NAME" => $value];
+			// }
+			$results[] = $item;
 		}
 
 		return $results;
