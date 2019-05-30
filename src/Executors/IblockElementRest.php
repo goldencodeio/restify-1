@@ -1,4 +1,5 @@
 <?php
+
 namespace spaceonfire\Restify\Executors;
 
 use Bitrix\Main\Event;
@@ -104,7 +105,7 @@ class IblockElementRest implements IExecutor {
 	}
 
 	public function readMany() {
-		$results = [];
+		//if ($this->$elementId) {
 			$rsObject = CIBlockElement::GetProperty(
 				IblockUtility::getIblockIdByCode('catalog'),
 				$this->$elementId,
@@ -114,27 +115,30 @@ class IblockElementRest implements IExecutor {
 
 			while($arObject = $rsObject->Fetch()) {
 
-			$code = strtoupper( $arObject['CODE'] );
-			$results[] = [
-				[ "PROPERTY_" . $code . "_VALUE" ]
-				=> [
-					'JSON_VALUE'=> json_encode( $arObject, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE ),
-					'VALUE'=>
-					(
-						!is_null( $arObject['VALUE'] )
-						? $arObject['VALUE']
-						: $arObject['VALUE_ENUM']
-					),
-					'NAME' => $arObject['NAME']
-				]
-				];
+				list( $code, $name, $value ) =
+					array_map( function ( $key ) use ( $arObject ) {
+						return $arObject[ $key ];
+					}, [
+						'CODE', 'NAME', 'VALUE'
+					])
+				;
 
+				$code = strtoupper( $code );
+				$value = !is_null( $arObject['VALUE_ENUM'] )
+					? $arObject[ 'VALUE_ENUM' ]
+					: $arObject[ 'VALUE' ]
+				;
+
+
+				$propValue[ 'PROPERTY_' . $code ] = $value;
 
 			$propCode = 'PROPERTY_' . $arObject['CODE'];
 			$propName['PROPERTY_' . $arObject['CODE']] = $arObject['NAME'];
 
 			array_push($this->select, $propCode);
+
 			}
+
 			//}
 
 		$query = CIBlockElement::GetList(
@@ -143,16 +147,15 @@ class IblockElementRest implements IExecutor {
 			false,
 			$this->navParams,
 			[ 'ID', 'IBLOCK_ID', 'NAME' ]
+			// $this->select
 		);
 
+		$results = [];
 		while ($item = $query->GetNext(true, false)) {
-			$item = array_filter( $item, function( $item ){
-				return !is_null( $item );
-			});
-			// foreach($propName as $key => $value){
-			// 	$key = strtoupper($key);
-			// 	$item[$key . '_VALUE'] = ["VALUE" => $item[$key . '_VALUE'], "NAME" => $value];
-			// }
+			foreach($propName as $key => $value){
+				$key = strtoupper($key);
+				$item[$key . '_VALUE'] = ["VALUE" => $propValue[ $key ], "NAME" => $value];
+			}
 			$results[] = $item;
 		}
 
@@ -367,4 +370,3 @@ class IblockElementRest implements IExecutor {
 		}
 	}
 }
-
