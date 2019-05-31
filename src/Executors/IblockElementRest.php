@@ -104,77 +104,148 @@ class IblockElementRest implements IExecutor {
 		return $this->readOne($id);
 	}
 
-	public function readMany() {
-		//if ($this->$elementId) {
-			$rsObject = CIBlockElement::GetProperty(
-				IblockUtility::getIblockIdByCode('catalog'),
-				$this->$elementId,
-				array(),
-				array()
-			);
+	// Object method
+	// Gets iBlock's  properties with GetProperty()
+	// Takes	: n/a
+	// Changes	: $this->select
+	// Returns	: [
+	// 					Hash[Str] of properties' codes and names,
+	// 					Hash[Str] of properties codes and values
+	//				]
+	private function getPropNamesValues(){
+		$propName = [];
+		$propValue = [];
 
-			while($arObject = $rsObject->Fetch()) {
-
-				list( $code, $name, $value ) =
-					array_map( function ( $key ) use ( $arObject ) {
-						return $arObject[ $key ];
-					}, [
-						'CODE', 'NAME', 'VALUE'
-					])
-				;
-
-				$code = strtoupper( $code );
-				$value = !is_null( $arObject['VALUE_ENUM'] )
-					? $arObject[ 'VALUE_ENUM' ]
-					: $arObject[ 'VALUE' ]
-				;
-
-
-				$propValue[ 'PROPERTY_' . $code ] = $value;
-
-			$propCode = 'PROPERTY_' . $arObject['CODE'];
-			$propName['PROPERTY_' . $arObject['CODE']] = $arObject['NAME'];
-
-			array_push($this->select, $propCode);
-
-			}
-
-			//}
-
-		$query = CIBlockElement::GetList(
-			$this->order,
-			$this->filter,
-			false,
-			$this->navParams,
-			[
-				'ID', 'IBLOCK_ID', 'NAME', 'DATE_CREATE', 'ACTIVE', 'CODE',
-				'DATE_CREATE', 'DETAIL_PICTURE', 'DETAIL_TEXT',
-				'DETAIL_TEXT_TYPE', 'IBLOCK_SECTION', 'IBLOCK_SECTION_ID',
-				'BASE', 'BASE_PRICE', 'CAN_BUY', 'CATALOG_GROUP_ID',
-				'CATALOG_GROUP_NAME', 'BASE', 'BASE_PRICE', 'CAN_BUY',
-				'CATALOG_GROUP_ID', 'CATALOG_GROUP_NAME', 'CONTENT_TYPE',
-				'CURRENCY', 'FILE_SIZE', 'HEIGHT', 'IBLOCK_SECTION',
-				'IS_IN_COMPARE', 'PRODUCT_QUANTITY_TRACE', 'PRODUCT_WEIGHT',
-				'PROPERTY_PHOTOS_DESCRIPTION', 'QUANTITY_FROM', 'QUANTITY_TO',
-				'SRC', 'TIMESTAMP_X', 'TMP_ID', 'WIDTH', 'XML_ID',
-				'DESCRIPTION', 'ELEMENT_IBLOCK_ID', 'EXTRA_ID', 'FILE_SIZE',
-				'HEIGHT', 'IBLOCK_SECTION', 'IS_IN_COMPARE', 'ORIGINAL_NAME',
-				'PREVIEW_PICTURE', 'PREVIEW_TEXT', 'PREVIEW_TEXT_TYPE',
-				'PRICE', 'PRODUCT_CAN_BUY_ZERO', 'PRODUCT_ID',
-				'PRODUCT_NEGATIVE_AMOUNT_TRACE', 'PRODUCT_QUANTITY',
-				'PRODUCT_QUANTITY_TRACE', 'PRODUCT_WEIGHT'
-			]
-			// $this->select
+		// query properties with GetProperty()
+		$rsObject = CIBlockElement::GetProperty(
+			IblockUtility::getIblockIdByCode('catalog'),
+			$this->$elementId,
+			array(), array()
 		);
+		while($arObject = $rsObject->Fetch()) {
+
+			// fetch and normalize properties from GetProperty()
+			list( $code, $name, $value ) =
+				array_map( function ( $key ) use ( $arObject ) {
+					return $arObject[ $key ];
+				}, [
+					'CODE', 'NAME', 'VALUE'
+				])
+			;
+			$code = strtoupper( $code );
+			$value = ! empty( $arObject['VALUE_ENUM'] )
+				? $arObject[ 'VALUE_ENUM' ]
+				: $arObject[ 'VALUE' ]
+			;
+
+			if( ! empty( $value ) ){
+
+				// Assign properties
+				$propValue[ $code ] = $value;
+				$propName[ $code ] = $name;
+				array_push($this->select, $code);
+			}
+		}
+
+		return [ $propName, $propValue ];
+	}
+
+	// Static method
+	// Takes	: Array
+	// Retuurns	: Array without empty/null values
+	function deleteEmpties( $item ){
+		$item = array_map('array_filter', $item);
+		$item = array_filter( $item, function(  ){} );
+
+		return $item;
+	}
+
+	// Object method
+	// Gets iBlock's  properties with GetList()
+	// Takes	: Hash[Str] of properties' codes and their names,
+	// Returns	: Hash[ Str or Hash[Str] ]
+	// 			  where keys are properties' codes surrounded with
+	// 			  'PROPERTY_'  and '_VALUE',
+	// 			  and values are Str some of properties values taken
+	// 			  from $propValue argument,
+	// 			  or arrays or anything returned by iBlock's GetList()
+	private function getListing( $propName, $propValue  ){
 
 		$results = [];
-		while ($item = $query->GetNext(true, false)) {
-			foreach($propName as $key => $value){
-				$key = strtoupper($key);
-				$item[$key . '_VALUE'] = ["VALUE" => $propValue[ $key ], "NAME" => $value];
+		$chunk_size = 10; // TODO: 30 for performance
+		$items = [];
+		$listingCodes = [
+
+			// Property codes for GetList()
+			// TODO: $this->select
+			'ACTIVE', 'BASE', 'BASE_PRICE', 'CAN_BUY',
+			'CATALOG_GROUP_ID', 'CATALOG_GROUP_NAME', 'CODE',
+			'CONTENT_TYPE', 'CURRENCY', 'DATE_CREATE', 'DESCRIPTION',
+			'DETAIL_PICTURE', 'DETAIL_TEXT', 'DETAIL_TEXT_TYPE',
+			'ELEMENT_IBLOCK_ID', 'EXTRA_ID', 'FILE_SIZE', 'HEIGHT',
+			'IBLOCK_ID', 'IBLOCK_SECTION', 'IBLOCK_SECTION_ID', 'ID',
+			'IS_IN_COMPARE', 'NAME', 'ORIGINAL_NAME', 'PREVIEW_PICTURE',
+			'PREVIEW_TEXT', 'PREVIEW_TEXT_TYPE', 'PRICE',
+			'PRODUCT_CAN_BUY_ZERO', 'PRODUCT_ID',
+			'PRODUCT_NEGATIVE_AMOUNT_TRACE', 'PRODUCT_QUANTITY',
+			'PRODUCT_QUANTITY_TRACE', 'PRODUCT_WEIGHT',
+			'PROPERTY_PHOTOS_DESCRIPTION', 'QUANTITY_FROM',
+			'QUANTITY_TO', 'SRC', 'TIMESTAMP_X', 'TMP_ID', 'WIDTH',
+			'XML_ID',
+		];
+
+		$listingCodesChunks = array_chunk( $listingCodes, $chunk_size );
+
+		foreach( $listingCodesChunks as $listingCodesChunk ){
+			$listingCodesChunk[] = 'ID';
+
+			$query = CIBlockElement::GetList(
+				$this->order,
+				$this->filter,
+				false,
+				$this->navParams,
+				$listingCodesChunk
+			);
+
+			while ($item = $query->GetNext(true, false)) {
+				$itemId = $item[ 'ID' ];
+				// $item = $this->deleteEmpties( $item );
+				if ( empty( $items[ $itemId ] ) ) {
+					$items[ $itemId ] = $item;
+				} else {
+					$items[ $itemId ] = array_merge( $items[ $itemId ], $item );
+				}
 			}
+		}
+
+		foreach ( $items as $itemId => $item ){
+				foreach($propName as $code => $name){
+
+					// Find stuff from GetProperty()
+					$value = $propValue[ $code ];
+					$itemKey = join( '_', [ 'PROPERTY', $code, 'VALUE' ] );
+
+					// Assign normalized to output
+					$item[$itemKey] = [ "NAME" => $name, "VALUE" => $value ];
+				}
+
+			$items[ $itemId ] = $item;
+		}
+
+
+		foreach ( $items as $item ){
 			$results[] = $item;
 		}
+
+		return $results;
+
+	}
+
+	public function readMany() {
+
+		// Take values from GetProperty() then from GetList()
+		list( $propName, $propValue  ) = $this->getPropNamesValues();
+		$results = $this->getListing( $propName, $propValue );
 
 		return $results;
 	}
