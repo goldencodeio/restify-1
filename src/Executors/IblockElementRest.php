@@ -154,16 +154,8 @@ class IblockElementRest implements IExecutor {
 	// Takes	: Array
 	// Retuurns	: Array without empty/null values
 	function deleteEmpties( $item ){
-		$item = array_map( function( $value ){
-			return is_array( $value )
-				? array_filter( $item, function( $value ){
-						return ! ( is_null( $value ) ||  $value === 0  || $value === '' );
-					} )
-					: $value;
-			} , $item);
-		$item = array_filter( $item, function( $value ){
-				return ! ( is_null( $value ) ||  $value === 0  || $value === '' );
-		} );
+		$item = array_map('array_filter', $item);
+		$item = array_filter( $item, function(  ){} );
 
 		return $item;
 	}
@@ -217,7 +209,7 @@ class IblockElementRest implements IExecutor {
 
 			while ($item = $query->GetNext(true, false)) {
 				$itemId = $item[ 'ID' ];
-				$item = $this->deleteEmpties( $item );
+				// $item = $this->deleteEmpties( $item );
 				if ( empty( $items[ $itemId ] ) ) {
 					$items[ $itemId ] = $item;
 				} else {
