@@ -234,7 +234,7 @@ class IblockElementRest implements IExecutor {
 
 
 		foreach ( $items as $item ){
-			$results[] = $item;
+			if( ! empty( $item['NAME' ]	) ) $results[] = $item;
 		}
 
 		return $results;
