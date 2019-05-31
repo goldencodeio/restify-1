@@ -119,7 +119,7 @@ class IblockElementRest implements IExecutor {
 		// query properties with GetProperty()
 		$rsObject = CIBlockElement::GetProperty(
 			IblockUtility::getIblockIdByCode('catalog'),
-			$this->elementId,
+			$this->$elementId,
 			array(), array()
 		);
 		while($arObject = $rsObject->Fetch()) {
@@ -133,26 +133,35 @@ class IblockElementRest implements IExecutor {
 				])
 			;
 			$code = strtoupper( $code );
-			$value = (
-					( ! is_null( $arObject['VALUE_ENUM'] ) )
-						||
-					( ! empty( $arObject['VALUE_ENUM'] ) )
-				)
+			$value = ! empty( $arObject['VALUE_ENUM'] )
 				? $arObject[ 'VALUE_ENUM' ]
 				: $arObject[ 'VALUE' ]
 			;
-			if( is_null( $value ) ) $value = '';
 
-			// Assign properties
-			$propValue[ $code ] = $value;
-			$propName[ $code ] = $name;
-			array_push($this->select, $code);
+			if( ! empty( $value ) ){
+
+				// Assign properties
+				$propValue[ $code ] = $value;
+				$propName[ $code ] = $name;
+				array_push($this->select, $code);
+			}
 		}
 
 		return [ $propName, $propValue ];
 	}
 
+	// Static method
+	// Takes	: Array
+	// Retuurns	: Array without empty/null values
+	function deleteEmpties( $item ){
+		$item = array_map('array_filter', $item);
+		$item = array_filter( $item, function(  ){} );
+
+		return $item;
+	}
+
 	// Object method
+	// Gets iBlock's  properties with GetList()
 	// Takes	: Hash[Str] of properties' codes and their names,
 	// Returns	: Hash[ Str or Hash[Str] ]
 	// 			  where keys are properties' codes surrounded with
@@ -161,7 +170,10 @@ class IblockElementRest implements IExecutor {
 	// 			  from $propValue argument,
 	// 			  or arrays or anything returned by iBlock's GetList()
 	private function getListing( $propName, $propValue  ){
+
 		$results = [];
+		$chunk_size = 10; // TODO: 30 for performance
+		$items = [];
 		$listingCodes = [
 
 			// Property codes for GetList()
@@ -182,29 +194,51 @@ class IblockElementRest implements IExecutor {
 			'XML_ID',
 		];
 
-		$query = CIBlockElement::GetList(
-			$this->order,
-			$this->filter,
-			false,
-			$this->navParams,
-			$listingCodes
-		);
+		$listingCodesChunks = array_chunk( $listingCodes, $chunk_size );
 
-		while ($item = $query->GetNext(true, false)) {
-			foreach($propName as $code => $name){
+		foreach( $listingCodesChunks as $listingCodesChunk ){
+			$listingCodesChunk[] = 'ID';
 
-				// Find stuff from GetProperty()
-				$value = $propValue[ $code ];
-				$itemKey = join( '_', [ 'PROPERTY', $code, 'VALUE' ] );
+			$query = CIBlockElement::GetList(
+				$this->order,
+				$this->filter,
+				false,
+				$this->navParams,
+				$listingCodesChunk
+			);
 
-				// Assign normalized to output
-				$item[$itemKey] = [ "NAME" => $name, "VALUE" => $value ];
+			while ($item = $query->GetNext(true, false)) {
+				$itemId = $item[ 'ID' ];
+				// $item = $this->deleteEmpties( $item );
+				if ( empty( $items[ $itemId ] ) ) {
+					$items[ $itemId ] = $item;
+				} else {
+					$items[ $itemId ] = array_merge( $items[ $itemId ], $item );
+				}
 			}
+		}
 
+		foreach ( $items as $itemId => $item ){
+				foreach($propName as $code => $name){
+
+					// Find stuff from GetProperty()
+					$value = $propValue[ $code ];
+					$itemKey = join( '_', [ 'PROPERTY', $code, 'VALUE' ] );
+
+					// Assign normalized to output
+					$item[$itemKey] = [ "NAME" => $name, "VALUE" => $value ];
+				}
+
+			$items[ $itemId ] = $item;
+		}
+
+
+		foreach ( $items as $item ){
 			$results[] = $item;
 		}
 
 		return $results;
+
 	}
 
 	public function readMany() {
