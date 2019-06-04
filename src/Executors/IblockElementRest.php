@@ -116,21 +116,22 @@ class IblockElementRest implements IExecutor {
 		$propName = [];
 		$propValue = [];
 		$isMultiple = false;
+		$iBlockId = IblockUtility::getIblockIdByCode('catalog');
 
 		// query properties with GetProperty()
 		$rsObject = CIBlockElement::GetProperty(
-			IblockUtility::getIblockIdByCode('catalog'),
+			$iBlockId,
 			$this->$elementId,
 			array(), array()
 		);
 		while($arObject = $rsObject->Fetch()) {
 
 			// fetch and normalize properties from GetProperty()
-			list( $code, $name, $value ) =
+			list( $code, $name, $value, $linkIblockId ) =
 				array_map( function ( $key ) use ( $arObject ) {
 					return $arObject[ $key ];
 				}, [
-					'CODE', 'NAME', 'VALUE'
+					'CODE', 'NAME', 'VALUE', 'LINK_IBLOCK_ID'
 				])
 			;
 			$code = strtoupper( $code );
@@ -149,18 +150,59 @@ class IblockElementRest implements IExecutor {
 				// Assign properties
 				$propName[ $code ] = $name;
 				array_push($this->select, $code);
+
+				if ( ( $linkIblockId != 0 )
+						&&
+						( $linkIblockId != $iBlockId )
+
+					){
+					$linkNameValue = $isMultiple
+
+						// Remind latest asignment for multiple linked properties, e. g., tags
+						?( 	! is_null( $propValue[ $code ] )
+							?	$propValue[ $code ]
+							:	[]
+						) : ''
+					;
+
+					// Take values from property-linked iBlock
+					// Element's 'ID' in the linked iBlock is the item's
+					// value
+					$linkedElementResultHandle = CIBlockElement::GetList( [],
+						[ IBLOCK_ID => $linkIblockId,
+						  ID		=> $value
+					  ]
+					);
+					while($linkObject = $linkedElementResultHandle->Fetch()) {
+						$linkObjectName = $linkObject[ 'NAME' ];
+
+						if( ! is_null( $linkObjectName ) ){
+							if( $isMultiple ){
+								$linkNameValue[] = $linkObjectName;
+							} else {
+								$linkNameValue = $linkObjectName;
+							}
+						}
+					}
+
+					$propValue[ $code ] = $linkNameValue;
+				} else {
+
+				// Take values from 'catalog' iBlock
 				if( $isMultiple ){
 					if ( ! is_null($propValue[ $code ] ) ) {
 						$propValue[ $code ][] = $value;
 					} else {
 						$propValue[ $code ] = [ $value ];
 					}
-
 				} else { // $isMultiple
 					$propValue[ $code ] =  $value ;
 				}
+
+				}
+
 			}
-		}
+		} // GetProperty()
 
 		return [ $propName, $propValue ];
 	}
