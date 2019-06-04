@@ -6,12 +6,27 @@ use Bitrix\Main\Event;
 use CFile;
 
 class FileFormatter implements IFormatter {
+
+	/**
+	 * Get bitrix file or files
+	 * @param string|int|[string|int] $fileStuff
+	 * @return array
+	 */
+	public static function format($fileStuff) {
+		$fileResults = is_array( $fileStuff )
+			? FileFormatter::formatFiles( $fileStuff )
+			: FileFormatter::formatFile( $fileStuff )
+		;
+
+		return $fileResults;
+	}
+
 	/**
 	 * Get bitrix file
 	 * @param string|int $fileId
 	 * @return array
 	 */
-	public static function format($fileId) {
+	private static function formatFile($fileId) {
 		$rawFile = CFile::GetFileArray($fileId);
 
 		$selectFields = [
@@ -39,6 +54,31 @@ class FileFormatter implements IFormatter {
 		]);
 		$event->send();
 
+		$file = is_array( $file )
+			? (
+				! is_null( $file[ 'ID' ] )
+					? $file
+
+					// Property's 'NAME" field
+					: $fileId
+			)
+			: $fileId
+		;
+
 		return $file;
+	}
+
+	/**
+	 * Get bitrix files
+	 * @param [string|int] $files
+	 * @return [array]
+	 */
+	private static function formatFiles($files) {
+		foreach( $files as $fileId ){
+			$fileResult = FileFormatter::formatFile( $fileId );
+			$fileResults[] = $fileResult;
+		}
+
+		return $fileResults;
 	}
 }

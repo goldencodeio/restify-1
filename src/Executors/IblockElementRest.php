@@ -115,6 +115,7 @@ class IblockElementRest implements IExecutor {
 	private function getPropNamesValues(){
 		$propName = [];
 		$propValue = [];
+		$isMultiple = false;
 
 		// query properties with GetProperty()
 		$rsObject = CIBlockElement::GetProperty(
@@ -137,13 +138,27 @@ class IblockElementRest implements IExecutor {
 				? $arObject[ 'VALUE_ENUM' ]
 				: $arObject[ 'VALUE' ]
 			;
+			$isMultiple = ( 'Y' === $arObject[ 'MULTIPLE' ] );
 
-			if( ! empty( $value ) ){
+			// Non-empty arrays, strings, not 'null's ( but '0's )
+			if( ( ! empty( $value ) )
+				||
+				(  $value === 0 )
+			){
 
 				// Assign properties
-				$propValue[ $code ] = $value;
 				$propName[ $code ] = $name;
 				array_push($this->select, $code);
+				if( $isMultiple ){
+					if ( ! is_null($propValue[ $code ] ) ) {
+						$propValue[ $code ][] = $value;
+					} else {
+						$propValue[ $code ] = [ $value ];
+					}
+
+				} else { // $isMultiple
+					$propValue[ $code ] =  $value ;
+				}
 			}
 		}
 
@@ -209,6 +224,7 @@ class IblockElementRest implements IExecutor {
 
 			while ($item = $query->GetNext(true, false)) {
 				$itemId = $item[ 'ID' ];
+
 				// $item = $this->deleteEmpties( $item );
 				if ( empty( $items[ $itemId ] ) ) {
 					$items[ $itemId ] = $item;
@@ -231,7 +247,6 @@ class IblockElementRest implements IExecutor {
 
 			$items[ $itemId ] = $item;
 		}
-
 
 		foreach ( $items as $item ){
 			if( ! empty( $item['NAME' ]	) ) $results[] = $item;
