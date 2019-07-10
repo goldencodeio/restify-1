@@ -229,7 +229,7 @@ class IblockElementRest implements IExecutor {
 	private function getListing( $propName, $propValue  ){
 
 		$results = [];
-		$chunk_size = 10; // TODO: 30 for performance
+		$chunk_size = 50; // balance performance versus memory_limit fit
 		$items = [];
 		$listingCodes = [
 
