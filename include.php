@@ -40,3 +40,21 @@ function sortArray(&$arr){
 		}
 	}
 }
+
+/*
+ * Function
+ * Finds cache key for the array supplied
+ * Takes	: Arr
+ * Returns	: Str unique key for every Array supplied
+ */
+function findCacheKey($arr){
+
+	// sort array as it may be associative without keys order needed
+	sortArray( $arr );
+
+	// serialize
+	$key = json_encode( $arr, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT );
+	$key = base64_encode( gzcompress( $key ) );
+
+	return $key;
+}
