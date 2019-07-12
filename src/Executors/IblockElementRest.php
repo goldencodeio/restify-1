@@ -10,12 +10,30 @@ use CIBlock;
 use CIBlockElement;
 use CIBlockFindTools;
 use CPrice;
+use \Bitrix\Main\Data\Cache;
 use Emonkak\HttpException\AccessDeniedHttpException;
 use Emonkak\HttpException\BadRequestHttpException;
 use Emonkak\HttpException\InternalServerErrorHttpException;
 use Emonkak\HttpException\NotFoundHttpException;
 use goldencode\Helpers\Bitrix\IblockUtility;
 use Exception;
+
+// CONSTANTS
+define( 'IBLOCKELEMENTREST_LISTING_CODES', [
+	'ACTIVE', 'BASE', 'BASE_PRICE', 'CAN_BUY', 'CATALOG_GROUP_ID',
+	'CATALOG_GROUP_NAME', 'CODE', 'CONTENT_TYPE', 'CURRENCY', 'DATE_CREATE',
+	'DESCRIPTION', 'DETAIL_PICTURE', 'DETAIL_TEXT', 'DETAIL_TEXT_TYPE',
+	'ELEMENT_IBLOCK_ID', 'EXTRA_ID', 'FILE_SIZE', 'HEIGHT', 'IBLOCK_ID',
+	'IBLOCK_SECTION', 'IBLOCK_SECTION_ID', 'ID', 'IS_IN_COMPARE', 'NAME',
+	'ORIGINAL_NAME', 'PREVIEW_PICTURE', 'PREVIEW_TEXT', 'PREVIEW_TEXT_TYPE',
+	'PRICE', 'PRODUCT_CAN_BUY_ZERO', 'PRODUCT_ID',
+	'PRODUCT_NEGATIVE_AMOUNT_TRACE', 'PRODUCT_QUANTITY',
+	'PRODUCT_QUANTITY_TRACE', 'PRODUCT_WEIGHT', 'PROPERTY_PHOTOS_DESCRIPTION',
+	'QUANTITY_FROM', 'QUANTITY_TO', 'SRC', 'TIMESTAMP_X', 'TMP_ID', 'WIDTH',
+	'XML_ID',
+] );
+
+//SUBS
 
 class IblockElementRest implements IExecutor {
 	use RestTrait {
@@ -62,6 +80,7 @@ class IblockElementRest implements IExecutor {
 		$this->registerBasicTransformHandler();
 		$this->registerPermissionsCheck();
 		$this->buildSchema();
+
 	}
 
 	/**
@@ -231,27 +250,8 @@ class IblockElementRest implements IExecutor {
 		$results = [];
 		$chunk_size = 50; // balance performance versus memory_limit fit
 		$items = [];
-		$listingCodes = [
 
-			// Property codes for GetList()
-			// TODO: $this->select
-			'ACTIVE', 'BASE', 'BASE_PRICE', 'CAN_BUY',
-			'CATALOG_GROUP_ID', 'CATALOG_GROUP_NAME', 'CODE',
-			'CONTENT_TYPE', 'CURRENCY', 'DATE_CREATE', 'DESCRIPTION',
-			'DETAIL_PICTURE', 'DETAIL_TEXT', 'DETAIL_TEXT_TYPE',
-			'ELEMENT_IBLOCK_ID', 'EXTRA_ID', 'FILE_SIZE', 'HEIGHT',
-			'IBLOCK_ID', 'IBLOCK_SECTION', 'IBLOCK_SECTION_ID', 'ID',
-			'IS_IN_COMPARE', 'NAME', 'ORIGINAL_NAME', 'PREVIEW_PICTURE',
-			'PREVIEW_TEXT', 'PREVIEW_TEXT_TYPE', 'PRICE',
-			'PRODUCT_CAN_BUY_ZERO', 'PRODUCT_ID',
-			'PRODUCT_NEGATIVE_AMOUNT_TRACE', 'PRODUCT_QUANTITY',
-			'PRODUCT_QUANTITY_TRACE', 'PRODUCT_WEIGHT',
-			'PROPERTY_PHOTOS_DESCRIPTION', 'QUANTITY_FROM',
-			'QUANTITY_TO', 'SRC', 'TIMESTAMP_X', 'TMP_ID', 'WIDTH',
-			'XML_ID',
-		];
-
-		$listingCodesChunks = array_chunk( $listingCodes, $chunk_size );
+		$listingCodesChunks = array_chunk( IBLOCKELEMENTREST_LISTING_CODES, $chunk_size );
 
 		foreach( $listingCodesChunks as $listingCodesChunk ){
 			$listingCodesChunk[] = 'ID';
@@ -298,11 +298,63 @@ class IblockElementRest implements IExecutor {
 
 	}
 
+	/* Method
+	 *
+	 * Initialize cache for scalar key given
+	 * Takes:	Str key of cache
+	 * Returns:	Cache object
+	 */
+	function getCache( $cacheKey ){
+		$cache = Cache::createInstance();
+		$cache->initCache(3600, "IblockElementRest.$cacheKey");
+
+		return $cache;
+	}
+
+	/* Object method
+	 *
+	 * Tries to find variable in cache, calls callback supplied if none was
+	 *
+	 * Takes	: Arr[any] key of cache to find variable in,
+	 * 			  Function to call if no variable found in cache
+	 * Returns	: Variable from cache or from function
+	 */
+	private function tryCacheThenCall( $cacheKeyArr, $cb ){
+		$cacheKey = findCacheKey( $cacheKeyArr );
+		$cache = $this->getCache( $cacheKey );
+
+		$vars = $cache->getVars();
+		$rv = [];
+		if( ! empty( $vars[ $cacheKey ] ) ){
+
+			// Found in cache
+			$rv = $vars[ $cacheKey ];
+		}
+		if( empty( $rv ) && $cache->startDataCache() ){
+
+			// Found in database put in cache
+			$rv = $cb();
+
+			$cache->endDataCache( [ $cacheKey =>  $rv, ] );
+		}
+
+		return $rv;
+	}
+
 	public function readMany() {
 
-		// Take values from GetProperty() then from GetList()
-		list( $propName, $propValue  ) = $this->getPropNamesValues();
-		$results = $this->getListing( $propName, $propValue );
+		// Find in cache first
+		$results = $this->tryCacheThenCall( [
+			'call'		=> 'readMany',
+			'order'		=> $this->order,
+			'filter'	=> $this->filter,
+			'navParams'	=> $this->navParams,
+		], function() {
+
+			// Take values from GetProperty() then from GetList()
+			list( $propName, $propValue ) = $this->getPropNamesValues();
+			return $this->getListing( $propName, $propValue );
+		} );
 
 		return $results;
 	}
@@ -376,23 +428,40 @@ class IblockElementRest implements IExecutor {
 		];
 	}
 
+	/* Method
+	 * Find count according by filter and cache
+	 * Takes	: n/a
+	 * Returns	: Int count
+	 */
 	public function count() {
+		$cache = $this->cache;
+		$this->select = ['ID'];
+		$countFound = 0;
+
 		$this->registerOneItemTransformHandler();
 
-		$this->select = ['ID'];
+		// Compose cache key from filter values
+		$cacheKey = findCacheKey( [
+			'call' => 'count',
+			'filter' => $this->filter,
+		] );
 
-		$query = CIBlockElement::GetList(
-			$this->order,
-			$this->filter,
-			false,
-			$this->navParams,
-			$this->select
-		);
-		$count = $query->SelectedRowsCount();
+		$countFound = $this->tryCacheThenCall( $cacheKey, function(){
+			$query = CIBlockElement::GetList(
+				$this->order,
+				$this->filter,
+				false,
+				$this->navParams,
+				$this->select
+			);
+			$countFound = $query->SelectedRowsCount();
+
+			return $countFound;
+		});
 
 		return [
 			[
-				'count' => $count,
+				'count' => $countFound,
 			],
 		];
 	}
@@ -515,3 +584,4 @@ class IblockElementRest implements IExecutor {
 		}
 	}
 }
+
