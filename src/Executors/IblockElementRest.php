@@ -10,6 +10,9 @@ use CIBlock;
 use CIBlockElement;
 use CIBlockFindTools;
 use CPrice;
+
+use \Bitrix\Main\Data\Cache;
+
 use Emonkak\HttpException\AccessDeniedHttpException;
 use Emonkak\HttpException\BadRequestHttpException;
 use Emonkak\HttpException\InternalServerErrorHttpException;
@@ -62,6 +65,10 @@ class IblockElementRest implements IExecutor {
 		$this->registerBasicTransformHandler();
 		$this->registerPermissionsCheck();
 		$this->buildSchema();
+
+		$this->cache = Cache::createInstance();
+		$this->cache->initCache(3600, "cacheKeyFilter");
+
 	}
 
 	/**
@@ -376,23 +383,49 @@ class IblockElementRest implements IExecutor {
 		];
 	}
 
+	/* Method
+	 * Find count according by filter and cache
+	 * Takes	: n/a
+	 * Returns	: Int count
+	 */
 	public function count() {
+		$cache = $this->cache;
+		$this->select = ['ID'];
+		$countFound = 0;
+
 		$this->registerOneItemTransformHandler();
 
-		$this->select = ['ID'];
+		// Compose cache key from filter values
+		$cacheKeyFilter = $this->filter;
+		sortArray( $cacheKeyFilter );
+		$cacheKeyFilter = json_encode( $cacheKeyFilter, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT );
+		$cacheKeyFilter = base64_encode( gzcompress( $cacheKeyFilter ) );
 
-		$query = CIBlockElement::GetList(
-			$this->order,
-			$this->filter,
-			false,
-			$this->navParams,
-			$this->select
-		);
-		$count = $query->SelectedRowsCount();
+		$vars = $cache->getVars();
+		if( !empty( $vars[ $cacheKeyFilter . ".count" ] ) ){
+
+			// Count found in cache
+		    $countFound = $vars[ $cacheKeyFilter . ".count" ];
+		}
+		if ( empty( $countFound ) &&  $cache->startDataCache() ) {
+
+			// Count found in database
+			$query = CIBlockElement::GetList(
+				$this->order,
+				$this->filter,
+				false,
+				$this->navParams,
+				$this->select
+			);
+			$countFound = $query->SelectedRowsCount();
+
+			// Put count to cache
+			$cache->endDataCache( [  $cacheKeyFilter . ".count" => $countFound ] );
+		}
 
 		return [
 			[
-				'count' => $count,
+				'count' => $countFound,
 			],
 		];
 	}
@@ -515,3 +548,4 @@ class IblockElementRest implements IExecutor {
 		}
 	}
 }
+

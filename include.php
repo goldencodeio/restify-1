@@ -24,3 +24,19 @@ $SPACEONFIRE_RESTIFY->options->addTabs([
 		]),
 	],
 ]);
+
+/*
+ * Function
+ * Sorts array by keys recursively
+ * Takes	: Arr
+ * Changes	: Arr supplied as argument
+ * Returns	: n/a
+ */
+function sortArray(&$arr){
+	ksort($arr);
+	foreach ($arr as &$a){
+		if(is_array($a)){
+			sortArray($a);
+		}
+	}
+}
