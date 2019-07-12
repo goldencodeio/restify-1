@@ -81,9 +81,6 @@ class IblockElementRest implements IExecutor {
 		$this->registerPermissionsCheck();
 		$this->buildSchema();
 
-		$this->cache = Cache::createInstance();
-		$this->cache->initCache(3600, "IblockElementRest");
-
 	}
 
 	/**
@@ -301,6 +298,19 @@ class IblockElementRest implements IExecutor {
 
 	}
 
+	/* Method
+	 *
+	 * Initialize cache for scalar key given
+	 * Takes:	Str key of cache
+	 * Returns:	Cache object
+	 */
+	function getCache( $cacheKey ){
+		$cache = Cache::createInstance();
+		$cache->initCache(3600, "IblockElementRest.$cacheKey");
+
+		return $cache;
+	}
+
 	/* Object method
 	 *
 	 * Tries to find variable in cache, calls callback supplied if none was
@@ -310,8 +320,9 @@ class IblockElementRest implements IExecutor {
 	 * Returns	: Variable from cache or from function
 	 */
 	private function tryCacheThenCall( $cacheKeyArr, $cb ){
-		$cache = $this->cache;
 		$cacheKey = findCacheKey( $cacheKeyArr );
+		$cache = $this->getCache( $cacheKey );
+
 		$vars = $cache->getVars();
 		$rv = [];
 		if( ! empty( $vars[ $cacheKey ] ) ){
@@ -323,6 +334,7 @@ class IblockElementRest implements IExecutor {
 
 			// Found in database put in cache
 			$rv = $cb();
+
 			$cache->endDataCache( [ $cacheKey =>  $rv, ] );
 		}
 
@@ -331,7 +343,7 @@ class IblockElementRest implements IExecutor {
 
 	public function readMany() {
 
-		// Finc in cache first
+		// Find in cache first
 		$results = $this->tryCacheThenCall( [
 			'call'		=> 'readMany',
 			'order'		=> $this->order,
@@ -427,7 +439,6 @@ class IblockElementRest implements IExecutor {
 		$countFound = 0;
 
 		$this->registerOneItemTransformHandler();
-
 
 		// Compose cache key from filter values
 		$cacheKey = findCacheKey( [
