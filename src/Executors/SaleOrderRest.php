@@ -6,6 +6,7 @@ use Bitrix\Currency\CurrencyTable;
 use Bitrix\Main\EventManager;
 use Bitrix\Main\Event;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\UserTable;
 use CMain;
 use CSaleBasket;
 use CSaleOrder;
@@ -81,6 +82,26 @@ class SaleOrderRest implements IExecutor {
 		return $results;
 	}
 
+	/*
+	 * Method
+	 * Gets UserID known as anonymous for order
+	 * Takes	: n/a
+	 * Returns	: Maybe Int user id known as order anon
+	 */
+	private function getUserOrderAnon(){
+		$userId = null;
+
+		$res = UserTable::getList([
+			'select' => [ 'ID' ],
+			'filter' => [ 'UF_ORDER_ANON' => 1 ],
+		]);
+
+		$userArr = $res->fetch();
+		if( ! empty( $userArr[ 'ID' ] ) ) $userId = $userArr[ 'ID' ];
+
+		return $userId;
+	}
+
 	public function create() {
 		$this->registerOneItemTransformHandler();
 
@@ -133,6 +154,15 @@ class SaleOrderRest implements IExecutor {
 			'PERSON_TYPE_ID' => (new CSalePersonType())->GetList()->Fetch()['ID'],
 		];
 
+		$userId = $USER->GetID();
+		if( empty( $userId ) ) $userId = $this->getUserOrderAnon();
+
+		if( empty( $userId ) ) {
+			throw new NotFoundHttpException(
+				$APPLICATION->LAST_ERROR ?: Loc::getMessage('SALE_ORDER_ANON_USER_FIND')
+			);
+		}
+
 		$overrides = [
 			'LID' => SITE_ID,
 			'PAYED' => 'N',
@@ -141,7 +171,7 @@ class SaleOrderRest implements IExecutor {
 			'ALLOW_DELIVERY' => 'Y',
 			'PRICE' => $orderPrice,
 			'PRICE_DELIVERY' => $deliveryPrice,
-			'USER_ID' => $USER->GetID(),
+			'USER_ID' => $userId,
 		];
 
 		$schemaKeys = array_keys($this->schema);
@@ -188,7 +218,6 @@ class SaleOrderRest implements IExecutor {
 	private function registerPermissionsCheck() {
 		global $SPACEONFIRE_RESTIFY;
 		$events = [
-			'pre:create',
 			'pre:readMany',
 			'pre:readOne',
 		];

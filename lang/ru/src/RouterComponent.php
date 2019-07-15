@@ -16,6 +16,7 @@ $MESS['SALE_BASKET_DELETE'] = 'Товар удален из корзины';
 $MESS['SALE_ORDER_CREATE_DELIVERY_EMPTY'] = 'Не указан способ доставки';
 $MESS['SALE_ORDER_CREATE_PAY_SYSTEM_EMPTY'] = 'Не указан способ оплаты';
 $MESS['SALE_ORDER_CREATE_BASKET_EMPTY'] = 'Корзина пуста';
+$MESS['SALE_ORDER_ANON_USER_FIND'] = 'Не удалось найти пользователя для присвоения анонимного заказа';
 $MESS['SALE_ORDER_CREATE_ERROR'] = 'Не удалось создать заказ';
 $MESS['SALE_ORDER_CREATE_SUCCESS'] = 'Заказ №#ORDER_ID# успешно создан';
 
