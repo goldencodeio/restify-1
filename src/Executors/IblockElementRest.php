@@ -16,6 +16,7 @@ use Emonkak\HttpException\BadRequestHttpException;
 use Emonkak\HttpException\InternalServerErrorHttpException;
 use Emonkak\HttpException\NotFoundHttpException;
 use goldencode\Helpers\Bitrix\IblockUtility;
+use spaceonfire\Restify\Executors\IblockElementRestCache;
 use Exception;
 
 // CONSTANTS
@@ -305,7 +306,7 @@ class IblockElementRest implements IExecutor {
 	 * Returns:	Cache object
 	 */
 	function getCache( $cacheKey ){
-		$cache = Cache::createInstance();
+		$cache = IblockElementRestCache::createInstance();
 		$cache->initCache(3600, "IblockElementRest.$cacheKey");
 
 		return $cache;
@@ -325,17 +326,20 @@ class IblockElementRest implements IExecutor {
 
 		$vars = $cache->getVars();
 		$rv = [];
-		if( ! empty( $vars[ $cacheKey ] ) ){
+		if( isset( $vars[ $cacheKey ] ) ){
 
 			// Found in cache
 			$rv = $vars[ $cacheKey ];
-		}
-		if( empty( $rv ) && $cache->startDataCache() ){
+		} else {
 
-			// Found in database put in cache
-			$rv = $cb();
+			// startDataCache() is re-implemented without returning false here
+			$cacheStartRv = $cache->startDataCache();
+			if( $cacheStartRv ){
 
-			$cache->endDataCache( [ $cacheKey =>  $rv, ] );
+				// Found in database put in cache
+				$rv = $cb();
+				$cache->endDataCache( [ $cacheKey =>  $rv, ] );
+			}
 		}
 
 		return $rv;
