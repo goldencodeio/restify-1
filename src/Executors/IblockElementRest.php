@@ -10,7 +10,6 @@ use CIBlock;
 use CIBlockElement;
 use CIBlockFindTools;
 use CPrice;
-use \Bitrix\Main\Data\Cache;
 use Emonkak\HttpException\AccessDeniedHttpException;
 use Emonkak\HttpException\BadRequestHttpException;
 use Emonkak\HttpException\InternalServerErrorHttpException;
