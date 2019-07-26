@@ -5,6 +5,7 @@ namespace spaceonfire\Restify\Executors;
 use Bitrix\Main\Event;
 use Bitrix\Main\EventManager;
 use Bitrix\Main\Localization\Loc;
+use \Bitrix\Main\UserTable;
 use CMain;
 use CUser;
 use Emonkak\HttpException\AccessDeniedHttpException;
@@ -169,6 +170,25 @@ class UserRest implements IExecutor {
 	}
 
 	/**
+	 * Finds user's login name by email
+	 */
+	private function getLoginByEmail( $email ){
+		$loginName = '';
+
+		$filter = [
+			'EMAIL' => $email,
+		];
+
+		$res = UserTable::getList( [ 'filter' => $filter ] );
+		$userArr = $res->fetch();
+		if ( ! empty( $userArr ) ){
+			$loginName = $userArr[ 'LOGIN' ];
+		}
+
+		return $loginName;
+	}
+
+	/**
 	 * Login user
 	 * @throws UnauthorizedHttpException
 	 */
@@ -186,7 +206,25 @@ class UserRest implements IExecutor {
 				throw new UnauthorizedHttpException($result['MESSAGE']);
 			}
 		} else {
-			throw new UnauthorizedHttpException($result['MESSAGE']);
+
+			// Try log in with email
+			$loginName = $this->getLoginByEmail( $this->body[ 'LOGIN' ] );
+			if( ! empty( $loginName ) ){
+				$result = $USER->Login($loginName, $this->body['PASSWORD'], $this->body['REMEMBER']);
+				$APPLICATION->arAuthResult = $result;
+				if ($result === true) {
+					$userInfo = $this->readOne($loginName)[0];
+					if ( !empty( $userInfo[ 'ID' ] ) ){
+						$rv = [ $userInfo ];
+					} else {
+						throw new UnauthorizedHttpException($result['MESSAGE']);
+					}
+				} else {
+					throw new UnauthorizedHttpException($result['MESSAGE']);
+				}
+			} else {
+				throw new UnauthorizedHttpException($result['MESSAGE']);
+			}
 		}
 
 		return $rv;
