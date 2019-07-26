@@ -195,6 +195,7 @@ class UserRest implements IExecutor {
 	public function login() {
 		global $USER, $APPLICATION;
 		$rv = [];
+		$doThrowUnauth = '';
 
 		$result = $USER->Login($this->body['LOGIN'], $this->body['PASSWORD'], $this->body['REMEMBER']);
 		$APPLICATION->arAuthResult = $result;
@@ -203,7 +204,7 @@ class UserRest implements IExecutor {
 			if ( !empty( $userInfo[ 'ID' ] ) ){
 				$rv = [ $userInfo ];
 			} else {
-				throw new UnauthorizedHttpException($result['MESSAGE']);
+				$doThrowUnauth = 1;
 			}
 		} else {
 
@@ -217,15 +218,17 @@ class UserRest implements IExecutor {
 					if ( !empty( $userInfo[ 'ID' ] ) ){
 						$rv = [ $userInfo ];
 					} else {
-						throw new UnauthorizedHttpException($result['MESSAGE']);
+						$doThrowUnauth = 1;
 					}
 				} else {
-					throw new UnauthorizedHttpException($result['MESSAGE']);
+					$doThrowUnauth = 1;
 				}
 			} else {
-				throw new UnauthorizedHttpException($result['MESSAGE']);
+				$doThrowUnauth = 1;
 			}
 		}
+
+		if ( ! empty( $doThrowUnauth ) ){ throw new UnauthorizedHttpException($result['MESSAGE']); }
 
 		return $rv;
 	}
