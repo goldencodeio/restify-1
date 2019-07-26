@@ -174,14 +174,22 @@ class UserRest implements IExecutor {
 	 */
 	public function login() {
 		global $USER, $APPLICATION;
+		$rv = [];
 
 		$result = $USER->Login($this->body['LOGIN'], $this->body['PASSWORD'], $this->body['REMEMBER']);
 		$APPLICATION->arAuthResult = $result;
-		if ($result !== true) {
+		if ($result === true) {
+			$userInfo = $this->readOne($this->body['LOGIN'])[0];
+			if ( !empty( $userInfo[ 'ID' ] ) ){
+				$rv = [ $userInfo ];
+			} else {
+				throw new UnauthorizedHttpException($result['MESSAGE']);
+			}
+		} else {
 			throw new UnauthorizedHttpException($result['MESSAGE']);
 		}
 
-		return $this->readOne($this->body['LOGIN']);
+		return $rv;
 	}
 
 	/**
@@ -272,6 +280,7 @@ class UserRest implements IExecutor {
 		// Convert me to current user id
 		if ($id === 'me') {
 			$id = $USER->GetID();
+			$loginName = $USER->GetLogin();
 			if (!$id) {
 				throw new UnauthorizedHttpException();
 			}
@@ -283,7 +292,9 @@ class UserRest implements IExecutor {
 		$user = CUser::GetList(
 			$tmpBy,
 			$tmpOrder,
-			array_merge($this->filter, ['LOGIN' => $id]),
+			array_merge($this->filter, ['LOGIN' =>
+					$loginName ? $loginName : $id
+				]),
 			[
 				'FIELDS' => [
 					'ID',
