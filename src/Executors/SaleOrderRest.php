@@ -192,8 +192,6 @@ class SaleOrderRest implements IExecutor {
 			);
 		}
 
-		$basket->OrderBasket($orderId, $currentCart);
-
 		// Add props
 		$orderPropsQ = (new CSaleOrderProps())->GetList();
 		while ($prop = $orderPropsQ->GetNext(true, false)) {
@@ -207,6 +205,8 @@ class SaleOrderRest implements IExecutor {
 				]);
 			}
 		}
+
+		$basket->OrderBasket($orderId, $currentCart);
 
 		return [
 			$this->success(Loc::getMessage('SALE_ORDER_CREATE_SUCCESS', [
