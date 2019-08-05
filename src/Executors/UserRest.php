@@ -5,6 +5,7 @@ namespace spaceonfire\Restify\Executors;
 use Bitrix\Main\Event;
 use Bitrix\Main\EventManager;
 use Bitrix\Main\Localization\Loc;
+use \Bitrix\Main\UserTable;
 use CMain;
 use CUser;
 use Emonkak\HttpException\AccessDeniedHttpException;
@@ -169,19 +170,67 @@ class UserRest implements IExecutor {
 	}
 
 	/**
+	 * Finds user's login name by email
+	 */
+	private function getLoginByEmail( $email ){
+		$loginName = '';
+
+		$filter = [
+			'EMAIL' => $email,
+		];
+
+		$res = UserTable::getList( [ 'filter' => $filter ] );
+		$userArr = $res->fetch();
+		if ( ! empty( $userArr ) ){
+			$loginName = $userArr[ 'LOGIN' ];
+		}
+
+		return $loginName;
+	}
+
+	/**
 	 * Login user
 	 * @throws UnauthorizedHttpException
 	 */
 	public function login() {
 		global $USER, $APPLICATION;
+		$rv = [];
+		$doThrowUnauth = '';
 
 		$result = $USER->Login($this->body['LOGIN'], $this->body['PASSWORD'], $this->body['REMEMBER']);
 		$APPLICATION->arAuthResult = $result;
-		if ($result !== true) {
-			throw new UnauthorizedHttpException($result['MESSAGE']);
+		if ($result === true) {
+			$userInfo = $this->readOne($this->body['LOGIN'])[0];
+			if ( !empty( $userInfo[ 'ID' ] ) ){
+				$rv = [ $userInfo ];
+			} else {
+				$doThrowUnauth = 1;
+			}
+		} else {
+
+			// Try log in with email
+			$loginName = $this->getLoginByEmail( $this->body[ 'LOGIN' ] );
+			if( ! empty( $loginName ) ){
+				$result = $USER->Login($loginName, $this->body['PASSWORD'], $this->body['REMEMBER']);
+				$APPLICATION->arAuthResult = $result;
+				if ($result === true) {
+					$userInfo = $this->readOne($loginName)[0];
+					if ( !empty( $userInfo[ 'ID' ] ) ){
+						$rv = [ $userInfo ];
+					} else {
+						$doThrowUnauth = 1;
+					}
+				} else {
+					$doThrowUnauth = 1;
+				}
+			} else {
+				$doThrowUnauth = 1;
+			}
 		}
 
-		return $this->readOne($this->body['LOGIN']);
+		if ( ! empty( $doThrowUnauth ) ){ throw new UnauthorizedHttpException($result['MESSAGE']); }
+
+		return $rv;
 	}
 
 	/**
@@ -272,6 +321,7 @@ class UserRest implements IExecutor {
 		// Convert me to current user id
 		if ($id === 'me') {
 			$id = $USER->GetID();
+			$loginName = $USER->GetLogin();
 			if (!$id) {
 				throw new UnauthorizedHttpException();
 			}
@@ -283,7 +333,9 @@ class UserRest implements IExecutor {
 		$user = CUser::GetList(
 			$tmpBy,
 			$tmpOrder,
-			array_merge($this->filter, ['LOGIN' => $id]),
+			array_merge($this->filter, ['LOGIN' =>
+					$loginName ? $loginName : $id
+				]),
 			[
 				'FIELDS' => [
 					'ID',
