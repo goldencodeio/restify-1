@@ -183,6 +183,14 @@ class SaleOrderRest implements IExecutor {
 			$overrides
 		);
 
+		// XXX Bitrix\Sale\Compatible\OrderCompatibility
+		// fillShipmentCollectionFromRequest(){
+		// $deliveryCode = < ... > $fields['DELIVERY_ID']
+		// $deliveryId = \CSaleDelivery::getIdByCode($deliveryCode);
+		$fields[ 'DELIVERY_ID' ] = \CSaleDelivery::getCodeById(
+			$fields[ 'DELIVERY_ID' ]
+		);
+
 		// Create order
 		$orderId = $order->Add($fields);
 
