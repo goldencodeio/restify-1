@@ -168,6 +168,7 @@ class UserRest implements IExecutor {
 	}
 
 	/**
+	 * Static function
 	 * Finds user's login name by email
 	 */
 	private function getLoginByEmail( $email ){
