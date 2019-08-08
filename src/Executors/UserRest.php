@@ -87,8 +87,6 @@ class UserRest implements IExecutor {
 		// Set id to filter
 		if (is_numeric($id)) {
 			$this->filter['ID'] = $id;
-		} else {
-			$this->filter['LOGIN'] = $id;
 		}
 
 		// Get only one item
@@ -180,9 +178,11 @@ class UserRest implements IExecutor {
 		];
 
 		$res = UserTable::getList( [ 'filter' => $filter ] );
-		$userArr = $res->fetch();
-		if ( ! empty( $userArr ) ){
-			$loginName = $userArr[ 'LOGIN' ];
+		if ( 1 === $res->getSelectedRowsCount() ){ // avoid dupes
+			$userArr = $res->fetch();
+			if ( ! empty( $userArr ) ){
+				$loginName = $userArr[ 'LOGIN' ];
+			}
 		}
 
 		return $loginName;
@@ -190,45 +190,58 @@ class UserRest implements IExecutor {
 
 	/**
 	 * Login user
+	 * Tries in this order: 'ID', 'LOGIN', 'EMAIL'
 	 * @throws UnauthorizedHttpException
 	 */
 	public function login() {
 		global $USER, $APPLICATION;
 		$rv = [];
 		$doThrowUnauth = '';
+		$result = false;
 
-		$result = $USER->Login($this->body['LOGIN'], $this->body['PASSWORD'], $this->body['REMEMBER']);
-		$APPLICATION->arAuthResult = $result;
-		if ($result === true) {
-			$userInfo = $this->readOne($this->body['LOGIN'])[0];
-			if ( !empty( $userInfo[ 'ID' ] ) ){
-				$rv = [ $userInfo ];
-			} else {
-				$doThrowUnauth = 1;
-			}
-		} else {
+		list( $inputLogin, $inputPassword, $inputRemember ) = [
+			$this->body['LOGIN'], $this->body['PASSWORD'], $this->body['REMEMBER']
+		];
 
-			// Try log in with email
-			$loginName = $this->getLoginByEmail( $this->body[ 'LOGIN' ] );
-			if( ! empty( $loginName ) ){
-				$result = $USER->Login($loginName, $this->body['PASSWORD'], $this->body['REMEMBER']);
-				$APPLICATION->arAuthResult = $result;
-				if ($result === true) {
-					$userInfo = $this->readOne($loginName)[0];
-					if ( !empty( $userInfo[ 'ID' ] ) ){
-						$rv = [ $userInfo ];
-					} else {
-						$doThrowUnauth = 1;
-					}
-				} else {
-					$doThrowUnauth = 1;
-				}
-			} else {
-				$doThrowUnauth = 1;
+
+		$res = CUser::GetByID( $inputLogin );
+		if( $res->SelectedRowsCount() ){
+			$userArr = $res->GetNext();
+			$loginName = $userArr[ 'LOGIN' ];
+
+			// Login with ID
+			if( !empty( $loginName ) ){ $result = $USER->Login(
+				$loginName, $inputPassword, $inputRemember );
 			}
 		}
 
-		if ( ! empty( $doThrowUnauth ) ){ throw new UnauthorizedHttpException($result['MESSAGE']); }
+		if( true !== $result ){
+			$loginName = $inputLogin;
+
+			// Login with name
+			if( !empty( $loginName ) ){ $result = $USER->Login(
+				$loginName, $inputPassword, $inputRemember );
+			}
+		}
+
+		if( true !== $result ){
+			$loginName = self::getLoginByEmail( $inputLogin );
+
+			// Login with email
+			if( !empty( $loginName ) ){ $result = $USER->Login(
+				$loginName, $inputPassword, $inputRemember );
+			}
+		}
+
+		$APPLICATION->arAuthResult = $result;
+		if ($result === true) {
+			$userInfo = $this->readOne($loginName);
+			if ( !empty( $userInfo[0][ 'ID' ] ) ){
+				$rv = [ $userInfo ];
+			}
+		} else {
+			throw new UnauthorizedHttpException($result['MESSAGE']);
+		}
 
 		return $rv;
 	}
@@ -310,48 +323,43 @@ class UserRest implements IExecutor {
 
 	/**
 	 * Get user id
-	 * @param string|int $id user id or login or 'me' alias
+	 * @param string $loginName user login or 'me' alias
 	 * @return int user id
 	 * @throws UnauthorizedHttpException if me alias used by user unauthorized
 	 * @throws NotFoundHttpException no user found with this login
 	 */
-	private function getId($id) {
+	private function getId($loginName) {
 		global $USER;
+		$id='';
 
 		// Convert me to current user id
 		if ($id === 'me') {
 			$id = $USER->GetID();
-			$loginName = $USER->GetLogin();
-			if (!$id) {
-				throw new UnauthorizedHttpException();
-			}
-		}
+		} else {
 
-		// Find by login first
-		$tmpBy = 'LOGIN';
-		$tmpOrder = 'ASC';
-		$user = CUser::GetList(
-			$tmpBy,
-			$tmpOrder,
-			array_merge($this->filter, ['LOGIN' =>
-					$loginName ? $loginName : $id
-				]),
-			[
-				'FIELDS' => [
-					'ID',
-				],
-			]
-		)->Fetch();
-		if ($user) {
-			return (int) $user['ID'];
+			// Find by login first
+			$tmpBy = 'LOGIN';
+			$tmpOrder = 'ASC';
+			$user = UserTable::getList( [ 'filter' =>
+				array_merge($this->filter,
+					['LOGIN' => $loginName ]
+				), ]
+			)->fetch();
+			if ($user) {
+				$id = (int) $user['ID'];
+			} else {
+
+				// Then return argument as is
+				$id = $loginName;
+			}
 		}
 
 		// Number is id
 		if (is_numeric($id) && (int) $id > 0) {
 			return (int) $id;
+		} else {
+			throw new NotFoundHttpException();
 		}
-
-		throw new NotFoundHttpException();
 	}
 
 	private function registerPermissionsCheck() {
