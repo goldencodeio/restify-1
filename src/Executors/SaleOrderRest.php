@@ -183,6 +183,14 @@ class SaleOrderRest implements IExecutor {
 			$overrides
 		);
 
+		// XXX Bitrix\Sale\Compatible\OrderCompatibility
+		// fillShipmentCollectionFromRequest(){
+		// $deliveryCode = < ... > $fields['DELIVERY_ID']
+		// $deliveryId = \CSaleDelivery::getIdByCode($deliveryCode);
+		$fields[ 'DELIVERY_ID' ] = \CSaleDelivery::getCodeById(
+			$fields[ 'DELIVERY_ID' ]
+		);
+
 		// Create order
 		$orderId = $order->Add($fields);
 
@@ -191,8 +199,6 @@ class SaleOrderRest implements IExecutor {
 				$APPLICATION->LAST_ERROR ?: Loc::getMessage('SALE_ORDER_CREATE_ERROR')
 			);
 		}
-
-		$basket->OrderBasket($orderId, $currentCart);
 
 		// Add props
 		$orderPropsQ = (new CSaleOrderProps())->GetList();
@@ -207,6 +213,8 @@ class SaleOrderRest implements IExecutor {
 				]);
 			}
 		}
+
+		$basket->OrderBasket($orderId, $currentCart);
 
 		return [
 			$this->success(Loc::getMessage('SALE_ORDER_CREATE_SUCCESS', [
