@@ -218,11 +218,13 @@ class SaleOrderRest implements IExecutor {
 
 		$basket->OrderBasket($orderId, $currentCart);
 
-		return [
-			$this->success(Loc::getMessage('SALE_ORDER_CREATE_SUCCESS', [
+		return [[
+			'result' => 'ok',
+			'message' => Loc::getMessage('SALE_ORDER_CREATE_SUCCESS', [
 				'#ORDER_ID#' => $orderId,
-			])),
-		];
+			]),
+			'id' => $orderId,
+		]];
 	}
 
 	private function registerPermissionsCheck() {
