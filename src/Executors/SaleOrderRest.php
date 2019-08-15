@@ -49,9 +49,11 @@ class SaleOrderRest implements IExecutor {
 		$sep = $this->ormNestedSelectSeparator;
 		$this->select = [
 			'*',
-			'BASKET' . $sep => 'BASKET',
-			'BASKET' . $sep . 'PRODUCT' . $sep => 'BASKET.PRODUCT',
-			'BASKET' . $sep . 'ELEMENT' . $sep => 'BASKET.PRODUCT.IBLOCK',
+		];
+		$this->basketSelect = [
+			'*',
+			'PRODUCT' . $sep => 'PRODUCT',
+			'ELEMENT' . $sep => 'PRODUCT.IBLOCK',
 		];
 
 		$this->registerPermissionsCheck();
@@ -278,15 +280,24 @@ class SaleOrderRest implements IExecutor {
 
 	public function basketProductsTransform(Event $event) {
 		$params = $event->getParameters();
-		$orderIds = array_unique(array_map(function ($item) { return $item['ID']; }, $params['result']));
+		$orders = $params['result'];
 		$result = [];
-		foreach ($orderIds as $id) {
-			$orders = array_filter($params['result'], function ($item) use ($id) { return $item['ID'] === $id; });
-			$order = current($orders);
-			$basket = array_values(array_map(function ($item) { return $item['BASKET']; }, $orders));
-			$order['BASKET'] = $basket;
+		foreach ($orders as $order) {
+			$orderId = $order[ 'ID' ];
+
+			$filter = [ 'ORDER_ID' => $orderId, ];
+			$select = $this->basketSelect;
+
+			// Get basket for order
+			$basket = \Bitrix\Sale\Internals\BasketTable::getList( [
+				'select' => $select, 'filter' => $filter,
+			] )->fetchAll();
+
+			$order[ 'BASKET' ] = $basket;
+
 			$result[] = $order;
 		}
 		$params['result'] = $result;
 	}
+
 }
