@@ -238,7 +238,7 @@ class UserRest implements IExecutor {
 		if ($result === true) {
 			$userInfo = $this->readOne($loginName);
 			if ( !empty( $userInfo[0][ 'ID' ] ) ){
-				$rv = [ $userInfo ];
+				$rv = $userInfo;
 			}
 		} else {
 			throw new UnauthorizedHttpException($result['MESSAGE']);
