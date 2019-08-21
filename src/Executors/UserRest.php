@@ -334,7 +334,7 @@ class UserRest implements IExecutor {
 		$id='';
 
 		// Convert me to current user id
-		if ($id === 'me') {
+		if ($loginName === 'me') {
 			$id = $USER->GetID();
 		} else {
 
