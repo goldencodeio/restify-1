@@ -185,7 +185,6 @@ class UserRest implements IExecutor {
 				$loginName = $userArr[ 'LOGIN' ];
 			}
 		}
-
 		return $loginName;
 	}
 
@@ -222,6 +221,12 @@ class UserRest implements IExecutor {
 			// Login with name
 			if( !empty( $loginName ) ){ $result = $USER->Login(
 				$loginName, $inputPassword, $inputRemember );
+			}
+
+			if( true === $result ){
+
+				// XXX for some cases, email is logged in here
+				$loginName = $USER->GetLogin();
 			}
 		}
 
