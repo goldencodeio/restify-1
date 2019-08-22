@@ -223,6 +223,9 @@ class UserRest implements IExecutor {
 			if( !empty( $loginName ) ){ $result = $USER->Login(
 				$loginName, $inputPassword, $inputRemember );
 			}
+
+			// XXX for some cases, email is logged in here
+			$loginName = $USER->GetLogin();
 		}
 
 		if( true !== $result ){
