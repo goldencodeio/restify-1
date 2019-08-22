@@ -185,7 +185,6 @@ class UserRest implements IExecutor {
 				$loginName = $userArr[ 'LOGIN' ];
 			}
 		}
-
 		return $loginName;
 	}
 
@@ -224,8 +223,11 @@ class UserRest implements IExecutor {
 				$loginName, $inputPassword, $inputRemember );
 			}
 
-			// XXX for some cases, email is logged in here
-			$loginName = $USER->GetLogin();
+			if( true === $result ){
+
+				// XXX for some cases, email is logged in here
+				$loginName = $USER->GetLogin();
+			}
 		}
 
 		if( true !== $result ){
