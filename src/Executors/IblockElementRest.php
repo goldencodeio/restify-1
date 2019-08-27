@@ -290,10 +290,16 @@ class IblockElementRest implements IExecutor {
 			$items[ $itemId ] = $item;
 		}
 
+		$items_new = [];
 		foreach ( $items as $item ){
-			if( ! empty( $item['NAME' ]	) ) $results[] = $item;
+			if( ! empty( $item['NAME' ]	) ) $items_new[] = $item;
 		}
+		$items = $items_new;
 
+		$items_new = &self::getOffersExists( $items );
+		$items = $items_new;
+
+		$results = $items;
 		return $results;
 
 	}
