@@ -236,6 +236,44 @@ class IblockElementRest implements IExecutor {
 		return $item;
 	}
 
+	// Function
+	// Gets 'OFFERS_EXIST' property for items
+	// This takes info from 'CML_*' field of 'sku's/'offer's table
+	// Takes	: Array[Hash[Any]] items ready for output without	'OFFERS_EXIST' key
+	// Throws	: NotFoundHttpException if non-existent items supplied as an argument
+	// Returns	: Array[Hash[Any]] items ready for output with		'OFFERS_EXIST' key
+	private function getOffersExists( &$items ) {
+		$items_new	= [];
+		$itemIds 	= [];
+
+		foreach( $items as $item ){
+			$id = $item[ 'ID' ];
+
+			// Array of IDs
+			$itemIds[] = $id;
+		}
+
+		$offersExists = \CCatalogSKU::getExistOffers($itemIds);
+
+		if( false === $offersExists ){
+
+			// Wrong arguments
+			throw new NotFoundHttpException();
+		}
+
+		foreach( $items as $item ){
+			$id = $item[ 'ID' ];
+			$offersExist = $offersExists[ $id ];
+
+			// Put value to output
+			$item[ 'OFFERS_EXIST' ] = $offersExist;
+
+			$items_new[] = $item;
+		}
+
+		return $items_new;
+	}
+
 	// Object method
 	// Gets iBlock's  properties with GetList()
 	// Takes	: Hash[Str] of properties' codes and their names,
@@ -290,10 +328,16 @@ class IblockElementRest implements IExecutor {
 			$items[ $itemId ] = $item;
 		}
 
+		$items_new = [];
 		foreach ( $items as $item ){
-			if( ! empty( $item['NAME' ]	) ) $results[] = $item;
+			if( ! empty( $item['NAME' ]	) ) $items_new[] = $item;
 		}
+		$items = $items_new;
 
+		$items_new = &self::getOffersExists( $items );
+		$items = $items_new;
+
+		$results = $items;
 		return $results;
 
 	}
