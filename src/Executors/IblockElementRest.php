@@ -406,6 +406,59 @@ class IblockElementRest implements IExecutor {
 		return $results;
 	}
 
+	// For the item known as having offers, take their data and out into
+	// item
+	private function getOffers( $item ){
+		$itemId = $item[ 'ID' ];
+		$iblockId = $item[ 'IBLOCK_ID' ];
+		$offerArrs = [];
+
+		// 'offers' iblock info - ID and property ID
+		$offerIBlockInfo = \CCatalogSKU::GetInfoByProductIBlock( $iblockId );
+		if( empty( $offerIBlockInfo ) ){
+			throw new NotFoundHttpException();
+		}
+		list( $offerIBlockId, $offerPropId ) = [ $offerIBlockInfo[ 'IBLOCK_ID' ],
+			$offerIBlockInfo[ 'SKU_PROPERTY_ID' ],
+		];
+
+		// offers info with property Id
+		$offerHandle = CIBlockElement::GetList( [], [
+				'IBLOCK_ID' => $offerIBlockId, 'ACTIVE'=>'Y',
+				"PROPERTY_$offerPropId" => $itemId,
+			], false, false, [
+				'ID', 'NAME', "PROPERTY_$offerPropId",
+			]
+		);
+		while( $offerArr = $offerHandle->GetNext() ){
+			$offerId = $offerArr[ 'ID' ];
+
+			// offer property info - name, value
+			$offerPropsHandle = CIBlockElement::GetProperty( $offerIBlockId, $offerId );
+			$offerPropsArrs = [];
+			while( $offerPropsArr = $offerPropsHandle->Fetch() ){
+
+				// 'CML2_LINK' is the linked product Id
+				if( 'CML2_LINK' != $offerPropsArr[ 'CODE' ] ){
+					$offerPropsArrs[] = $offerPropsArr;
+				}
+			}
+			$offerArr[ 'PROPS' ] = $offerPropsArrs;
+
+			$priceArr =  GetCatalogProductPrice( $offerId, 1 );
+			$offerArr[ 'PRICE' ] = $priceArr;
+
+			$offerArrs[] = $offerArr;
+		}
+		if( ! empty( $offerArrs ) ){
+
+			// property info in 'PROPS', and price info in 'PRICE'
+			$item[ 'OFFERS' ] = $offerArrs;
+		}
+
+		return $item;
+	}
+
 	public function readOne($id) {
 		$this->registerOneItemTransformHandler();
 		$this->$elementId = $id;
@@ -424,6 +477,16 @@ class IblockElementRest implements IExecutor {
 
 		if (!count($results)) {
 			throw new NotFoundHttpException();
+		}
+
+		if( !empty( $results[ 0 ][ 'OFFERS_EXIST' ] ) && true ===
+				$results[ 0 ][ 'OFFERS_EXIST' ]
+			){
+			$item = $results[ 0 ];
+
+			// Get offers for item
+			$item_new = self::getOffers( $item );
+			$results = [ $item_new ];
 		}
 
 		return $results;
