@@ -391,7 +391,7 @@ class IblockElementRest implements IExecutor {
 	public function readMany() {
 
 		// Find in cache first
-		$results = $this->tryCacheThenCall( [
+		$items = $this->tryCacheThenCall( [
 			'call'		=> 'readMany',
 			'order'		=> $this->order,
 			'filter'	=> $this->filter,
@@ -400,18 +400,31 @@ class IblockElementRest implements IExecutor {
 
 			// Take values from GetProperty() then from GetList()
 			list( $propName, $propValue ) = $this->getPropNamesValues();
-			return $this->getListing( $propName, $propValue );
+			$items = $this->getListing( $propName, $propValue );
+			$items_new = self::getOffers( $items );
+
+			$results = $items_new;
+			return $results;
 		} );
 
-		return $results;
+		return $items;
 	}
 
-	// For the item known as having offers, take their data and out into
+	// For the items known as having offers, take their data and out into
 	// item
-	private function getOffers( $item ){
-		$itemId = $item[ 'ID' ];
-		$iblockId = $item[ 'IBLOCK_ID' ];
-		$offerArrs = [];
+	private function getOffers( $items ){
+		$iblockId	= $items[0][ 'IBLOCK_ID' ]; // iblock is the same for every item
+		$offerArrs	= [];
+		$itemIds	= [];
+		$itemsHash	= [];
+
+		foreach( $items as $item ){
+			$id = $item[ 'ID' ];
+
+			// Array of IDs and a Hash to find by IDs taken from offers
+			$itemIds[]			= $id;
+			$itemsHash [ $id ]	= $item;
+		}
 
 		// 'offers' iblock info - ID and property ID
 		$offerIBlockInfo = \CCatalogSKU::GetInfoByProductIBlock( $iblockId );
@@ -425,7 +438,7 @@ class IblockElementRest implements IExecutor {
 		// offers info with property Id
 		$offerHandle = CIBlockElement::GetList( [], [
 				'IBLOCK_ID' => $offerIBlockId, 'ACTIVE'=>'Y',
-				"PROPERTY_$offerPropId" => $itemId,
+				"PROPERTY_$offerPropId" => $itemIds,
 			], false, false, [
 				'ID', 'NAME', "PROPERTY_$offerPropId",
 			]
@@ -439,7 +452,9 @@ class IblockElementRest implements IExecutor {
 			while( $offerPropsArr = $offerPropsHandle->Fetch() ){
 
 				// 'CML2_LINK' is the linked product Id
-				if( 'CML2_LINK' != $offerPropsArr[ 'CODE' ] ){
+				if( 'CML2_LINK' == $offerPropsArr[ 'CODE' ] ){
+					$offerArr[ 'PRODUCT_ID' ] = $offerPropsArr[ 'VALUE' ];
+				} else {
 					$offerPropsArrs[] = $offerPropsArr;
 				}
 			}
@@ -450,13 +465,31 @@ class IblockElementRest implements IExecutor {
 
 			$offerArrs[] = $offerArr;
 		}
-		if( ! empty( $offerArrs ) ){
 
-			// property info in 'PROPS', and price info in 'PRICE'
-			$item[ 'OFFERS' ] = $offerArrs;
+		foreach( $offerArrs as $offerArr ){
+			if( ! empty( $offerArr[ 'PRODUCT_ID' ] ) ){
+				$itemId = $offerArr[ 'PRODUCT_ID' ];
+				if ( ! empty( $itemsHash[ $itemId ] ) ){
+					$item = $itemsHash[ $itemId ];
+					if ( ! empty( $item[ 'OFFERS' ] ) ){
+
+						// property info in 'PROPS', and price info in 'PRICE'
+						$item[ 'OFFERS' ][] = $offerArr;
+					} else {
+						$item[ 'OFFERS' ] = [ $offerArr ];
+					}
+					$itemsHash[ $itemId ] = $item;
+				}
+			}
 		}
 
-		return $item;
+		$items_new = [];
+		foreach( $itemIds as $itemId ){ $item = $itemsHash[ $itemId ];
+			$items_new[] = $item;
+		}
+
+		$results = $items_new;
+		return $results;
 	}
 
 	public function readOne($id) {
@@ -477,16 +510,6 @@ class IblockElementRest implements IExecutor {
 
 		if (!count($results)) {
 			throw new NotFoundHttpException();
-		}
-
-		if( !empty( $results[ 0 ][ 'OFFERS_EXIST' ] ) && true ===
-				$results[ 0 ][ 'OFFERS_EXIST' ]
-			){
-			$item = $results[ 0 ];
-
-			// Get offers for item
-			$item_new = self::getOffers( $item );
-			$results = [ $item_new ];
 		}
 
 		return $results;
