@@ -377,6 +377,15 @@ class IblockElementRest implements IExecutor {
 		$itemIds	= [];
 		$itemsHash	= [];
 
+		// 'offers' iblock info - ID and property ID
+		$offerIBlockInfo = \CCatalogSKU::GetInfoByProductIBlock( $iblockId );
+		if( empty( $offerIBlockInfo ) ){
+			return $items;
+		}
+		list( $offerIBlockId, $offerPropId ) = [ $offerIBlockInfo[ 'IBLOCK_ID' ],
+			$offerIBlockInfo[ 'SKU_PROPERTY_ID' ],
+		];
+
 		foreach( $items as $item ){
 			$id = $item[ 'ID' ];
 
@@ -385,15 +394,6 @@ class IblockElementRest implements IExecutor {
 			$item[ 'OFFERS_EXIST' ] = false;
 			$itemsHash [ $id ]		= $item;
 		}
-
-		// 'offers' iblock info - ID and property ID
-		$offerIBlockInfo = \CCatalogSKU::GetInfoByProductIBlock( $iblockId );
-		if( empty( $offerIBlockInfo ) ){
-			throw new NotFoundHttpException();
-		}
-		list( $offerIBlockId, $offerPropId ) = [ $offerIBlockInfo[ 'IBLOCK_ID' ],
-			$offerIBlockInfo[ 'SKU_PROPERTY_ID' ],
-		];
 
 		// offers info with property Id
 		$offerHandle = CIBlockElement::GetList( [], [
@@ -535,10 +535,7 @@ class IblockElementRest implements IExecutor {
 		$this->registerOneItemTransformHandler();
 
 		// Compose cache key from filter values
-		$cacheKey = findCacheKey( [
-			'call' => 'count',
-			'filter' => $this->filter,
-		] );
+		$cacheKey = [ 'call' => 'count', 'filter' => $this->filter, ];
 
 		$countFound = $this->tryCacheThenCall( $cacheKey, function(){
 			$query = CIBlockElement::GetList(
