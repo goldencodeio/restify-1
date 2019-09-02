@@ -376,12 +376,10 @@ class IblockElementRest implements IExecutor {
 	public function readMany() {
 
 		// Find in cache first
-		$items = $this->tryCacheThenCall( [
-			'call'		=> 'readMany',
-			'order'		=> $this->order,
-			'filter'	=> $this->filter,
-			'navParams'	=> $this->navParams,
-		], function() {
+		$cacheKey = [ 'call'	=> 'readMany',		'order' 	=> $this->order,
+					'filter'	=> $this->filter,	'navParams' => $this->navParams,
+		];
+		$items = $this->tryCacheThenCall( $cacheKey, function() {
 
 			// Take values from GetProperty() then from GetList()
 			list( $propName, $propValue ) = $this->getPropNamesValues();
