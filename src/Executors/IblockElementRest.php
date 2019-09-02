@@ -390,6 +390,9 @@ class IblockElementRest implements IExecutor {
 			return $results;
 		} );
 
+		// To clear on update/delete
+		$this->putRequestsForItems( $cacheKey, $items );
+
 		return $items;
 	}
 
