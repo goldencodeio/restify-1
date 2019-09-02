@@ -562,10 +562,7 @@ class IblockElementRest implements IExecutor {
 		$this->registerOneItemTransformHandler();
 
 		// Compose cache key from filter values
-		$cacheKey = findCacheKey( [
-			'call' => 'count',
-			'filter' => $this->filter,
-		] );
+		$cacheKey = [ 'call' => 'count', 'filter' => $this->filter, ];
 
 		$countFound = $this->tryCacheThenCall( $cacheKey, function(){
 			$query = CIBlockElement::GetList(
