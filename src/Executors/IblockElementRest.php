@@ -310,25 +310,28 @@ class IblockElementRest implements IExecutor {
 	 * Returns	: Variable from cache or from function
 	 */
 	private function tryCacheThenCall( $cacheKeyArr, $cb ){
-		$cacheKey = findCacheKey( $cacheKeyArr );
-		$cache = $this->getCache( $cacheKey );
-
-		$vars = $cache->getVars();
 		$rv = [];
-		if( isset( $vars[ $cacheKey ] ) ){
+		$cacheKey = IblockElementRestCache::findCacheKey( $cacheKeyArr );
+		$cache = IblockElementRestCache::getCache();
+
+
+		$foundInCache = $cache->read( 3600, $cacheKey ); // $cache->getVars();
+		if( false !== $foundInCache ){ // isset( $vars[ $cacheKey ] ) ){
 
 			// Found in cache
-			$rv = $vars[ $cacheKey ];
+			$vars = $cache->get( $cacheKey );
+			if( ! empty( $vars[ 'data' ] ) ){ $vars = $vars['data']; } else { $vars = []; }
+			$rv = $vars; // [ $cacheKey ];
+
 		} else {
 
-			// startDataCache() is re-implemented without returning false here
-			$cacheStartRv = $cache->startDataCache();
-			if( $cacheStartRv ){
+			// Put to cache
+				$vars = $cb();
 
-				// Found in database put in cache
-				$rv = $cb();
-				$cache->endDataCache( [ $cacheKey =>  $rv, ] );
-			}
+				$cache->set( $cacheKey, [ 'data' => $vars, ] );
+				$cache->finalize();
+				$rv = $vars;
+
 		}
 
 		return $rv;
