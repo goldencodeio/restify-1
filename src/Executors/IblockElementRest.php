@@ -301,19 +301,6 @@ class IblockElementRest implements IExecutor {
 
 	}
 
-	/* Method
-	 *
-	 * Initialize cache for scalar key given
-	 * Takes:	Str key of cache
-	 * Returns:	Cache object
-	 */
-	function getCache( $cacheKey ){
-		$cache = IblockElementRestCache::createInstance();
-		$cache->initCache(3600, "IblockElementRest.$cacheKey");
-
-		return $cache;
-	}
-
 	/* Object method
 	 *
 	 * Tries to find variable in cache, calls callback supplied if none was

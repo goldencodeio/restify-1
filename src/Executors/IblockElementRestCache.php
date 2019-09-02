@@ -43,4 +43,54 @@ class IblockElementRestCache extends Cache {
 		return true;
 	}
 
+	/*
+	 * Function
+	 * Sorts array by keys recursively
+	 * Takes	: Arr
+	 * Changes	: Arr supplied as argument
+	 * Returns	: n/a
+	 */
+	private function sortArray(&$arr){
+		ksort($arr);
+		foreach ($arr as &$a){
+			if(is_array($a)){
+				self::sortArray($a);
+			}
+		}
+	}
+
+	/*
+	 * Function
+	 * Finds cache key for the array supplied
+	 * Takes	: Arr
+	 * Returns	: Str unique key for every Array supplied
+	 */
+	public function findCacheKey($arr){
+
+		// sort array as it may be associative without keys order needed
+		self::sortArray( $arr );
+
+		// serialize
+		$key = json_encode( $arr, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT );
+		$key = base64_encode( gzcompress( $key ) );
+
+		return $key;
+	}
+
+	/* Function
+	 *
+	 * Initialize cache for scalar key given
+	 * Takes:	Str key of cache
+	 * Returns:	Cache object
+	 */
+	public function getCache(){
+		// $cache = IblockElementRestCache::createInstance();
+		// $cache->initCache(3600, "IblockElementRest.$cacheKey");
+		$app = \Bitrix\Main\Application::getInstance();
+
+		$cache = $app->getManagedCache();
+
+		return $cache;
+	}
+
 }

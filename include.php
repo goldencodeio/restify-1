@@ -25,36 +25,3 @@ $SPACEONFIRE_RESTIFY->options->addTabs([
 	],
 ]);
 
-/*
- * Function
- * Sorts array by keys recursively
- * Takes	: Arr
- * Changes	: Arr supplied as argument
- * Returns	: n/a
- */
-function sortArray(&$arr){
-	ksort($arr);
-	foreach ($arr as &$a){
-		if(is_array($a)){
-			sortArray($a);
-		}
-	}
-}
-
-/*
- * Function
- * Finds cache key for the array supplied
- * Takes	: Arr
- * Returns	: Str unique key for every Array supplied
- */
-function findCacheKey($arr){
-
-	// sort array as it may be associative without keys order needed
-	sortArray( $arr );
-
-	// serialize
-	$key = json_encode( $arr, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT );
-	$key = base64_encode( gzcompress( $key ) );
-
-	return $key;
-}
