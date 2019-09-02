@@ -337,6 +337,42 @@ class IblockElementRest implements IExecutor {
 		return $rv;
 	}
 
+	// Add particular request to cache keys known to contain certain product ID
+	// to be found and deleted from cache on products' update/delete
+	private function putRequestForItem( $requestKeys, $requestCacheKey, $itemId ){
+		$cacheKeyArr = [ 'Catalog', (int) $itemId ];
+		$cacheKey = IblockElementRestCache::findCacheKey( $cacheKeyArr );
+
+		$cache = IblockElementRestCache::getCache();
+		$requestKeys[ $requestCacheKey ] = 1;
+		$cache->set( $cacheKey, [ 'data' => $requestKeys, ] );
+		$cache->finalize();
+	}
+
+
+	// Save cache keys known to contain certain product IDs
+	// to be found and deleted from cache on products' update/delete
+	private function putRequestsForItems( $requestCacheKeyArr, $items ){
+		$itemIds = [];
+
+		foreach( $items as $item ){
+			$itemIds[] = $item[ 'ID' ];
+		}
+
+		$requestCacheKey = IblockElementRestCache::findCacheKey( $requestCacheKeyArr );
+		foreach( $itemIds as $itemId ){
+			$cacheKey = [ 'Catalog', (int) $itemId ];
+			$requestKeys = $this->tryCacheThenCall( $cacheKey, function() use( $requestCacheKey ) {
+				return [ $requestCacheKey => 1 ];
+			} );
+			if( $requestKeys !== [ $requestCacheKey => 1 ] ){
+				if( empty( $requestKeys[ $requestCacheKey ] ) ){
+					$this->putRequestForItem( $requestKeys, $requestCacheKey, $itemId );
+				}
+			}
+		}
+	}
+
 	public function readMany() {
 
 		// Find in cache first
