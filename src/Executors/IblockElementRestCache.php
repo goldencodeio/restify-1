@@ -93,4 +93,47 @@ class IblockElementRestCache extends Cache {
 		return $cache;
 	}
 
+	// Function
+	// Delete specific request keys from cache for given item ID
+	// To be called from 'OnAfterIBlockElementUpdate' , 'OnAfterIBlockElementSetPropertyValues'
+	private function deleteKeysFromCache( $itemId, $iblockId ) {
+		$cache = self::getCache();
+		$cacheKeyArr = [ 'Catalog', (int) $itemId ];
+		$cacheKey = self::findCacheKey( $cacheKeyArr );
+
+
+		$foundInCache = $cache->read( 3600, $cacheKey ); // $cache->getVars();
+		if( false !== $foundInCache ){
+			// Found in cache
+			$vars = $cache->get( $cacheKey );
+			if( ! empty( $vars[ 'data' ] ) ){
+				$vars = $vars['data'];
+				foreach( array_keys( $vars ) as $requestCacheKey ){
+					$cache->clean( $requestCacheKey );
+				}
+				$cache->finalize();
+			}
+		}
+	}
+
+	// Function
+	// Delete specific request keys from cache for given item ID
+	// To be called from 'OnAfterIBlockElementUpdate' , 'OnAfterIBlockElementSetPropertyValues'
+	public function OnAfterIBlockElementSetPropertyValues(
+			$itemId, $iblockId, &$propertyValues, $propertyCode
+		){
+			self::deleteKeysFromCache( $itemId, $iblockId );
+	}
+
+
+	// Function
+	// Delete specific request keys from cache for given item ID
+	// To be called from 'OnAfterIBlockElementUpdate' event from 'iblock' module
+	public function OnAfterIBlockElementUpdate( $arFields ){
+		if( true === $arFields[ 'RESULT' ] ){
+			list( $itemId, $iblockId ) = [
+				$arFields[ 'ID' ], $arFields[ 'IBLOCK_ID' ], ];
+			self::deleteKeysFromCache( $itemId, $iblockId );
+		}
+	}
 }
