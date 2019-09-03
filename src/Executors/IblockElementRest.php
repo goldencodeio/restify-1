@@ -301,19 +301,6 @@ class IblockElementRest implements IExecutor {
 
 	}
 
-	/* Method
-	 *
-	 * Initialize cache for scalar key given
-	 * Takes:	Str key of cache
-	 * Returns:	Cache object
-	 */
-	function getCache( $cacheKey ){
-		$cache = IblockElementRestCache::createInstance();
-		$cache->initCache(3600, "IblockElementRest.$cacheKey");
-
-		return $cache;
-	}
-
 	/* Object method
 	 *
 	 * Tries to find variable in cache, calls callback supplied if none was
@@ -323,39 +310,76 @@ class IblockElementRest implements IExecutor {
 	 * Returns	: Variable from cache or from function
 	 */
 	private function tryCacheThenCall( $cacheKeyArr, $cb ){
-		$cacheKey = findCacheKey( $cacheKeyArr );
-		$cache = $this->getCache( $cacheKey );
-
-		$vars = $cache->getVars();
 		$rv = [];
-		if( isset( $vars[ $cacheKey ] ) ){
+		$cacheKey = IblockElementRestCache::findCacheKey( $cacheKeyArr );
+		$cache = IblockElementRestCache::getCache();
+
+
+		$foundInCache = $cache->read( 3600, $cacheKey ); // $cache->getVars();
+		if( false !== $foundInCache ){ // isset( $vars[ $cacheKey ] ) ){
 
 			// Found in cache
-			$rv = $vars[ $cacheKey ];
+			$vars = $cache->get( $cacheKey );
+			if( ! empty( $vars[ 'data' ] ) ){ $vars = $vars['data']; } else { $vars = []; }
+			$rv = $vars; // [ $cacheKey ];
+
 		} else {
 
-			// startDataCache() is re-implemented without returning false here
-			$cacheStartRv = $cache->startDataCache();
-			if( $cacheStartRv ){
+			// Put to cache
+				$vars = $cb();
 
-				// Found in database put in cache
-				$rv = $cb();
-				$cache->endDataCache( [ $cacheKey =>  $rv, ] );
-			}
+				$cache->set( $cacheKey, [ 'data' => $vars, ] );
+				$cache->finalize();
+				$rv = $vars;
+
 		}
 
 		return $rv;
 	}
 
+	// Add particular request to cache keys known to contain certain product ID
+	// to be found and deleted from cache on products' update/delete
+	private function putRequestForItem( $requestKeys, $requestCacheKey, $itemId ){
+		$cacheKeyArr = [ 'Catalog', (int) $itemId ];
+		$cacheKey = IblockElementRestCache::findCacheKey( $cacheKeyArr );
+
+		$cache = IblockElementRestCache::getCache();
+		$requestKeys[ $requestCacheKey ] = 1;
+		$cache->set( $cacheKey, [ 'data' => $requestKeys, ] );
+		$cache->finalize();
+	}
+
+
+	// Save cache keys known to contain certain product IDs
+	// to be found and deleted from cache on products' update/delete
+	private function putRequestsForItems( $requestCacheKeyArr, $items ){
+		$itemIds = [];
+
+		foreach( $items as $item ){
+			$itemIds[] = $item[ 'ID' ];
+		}
+
+		$requestCacheKey = IblockElementRestCache::findCacheKey( $requestCacheKeyArr );
+		foreach( $itemIds as $itemId ){
+			$cacheKey = [ 'Catalog', (int) $itemId ];
+			$requestKeys = $this->tryCacheThenCall( $cacheKey, function() use( $requestCacheKey ) {
+				return [ $requestCacheKey => 1 ];
+			} );
+			if( $requestKeys !== [ $requestCacheKey => 1 ] ){
+				if( empty( $requestKeys[ $requestCacheKey ] ) ){
+					$this->putRequestForItem( $requestKeys, $requestCacheKey, $itemId );
+				}
+			}
+		}
+	}
+
 	public function readMany() {
 
 		// Find in cache first
-		$items = $this->tryCacheThenCall( [
-			'call'		=> 'readMany',
-			'order'		=> $this->order,
-			'filter'	=> $this->filter,
-			'navParams'	=> $this->navParams,
-		], function() {
+		$cacheKey = [ 'call'	=> 'readMany',		'order' 	=> $this->order,
+					'filter'	=> $this->filter,	'navParams' => $this->navParams,
+		];
+		$items = $this->tryCacheThenCall( $cacheKey, function() {
 
 			// Take values from GetProperty() then from GetList()
 			list( $propName, $propValue ) = $this->getPropNamesValues();
@@ -365,6 +389,9 @@ class IblockElementRest implements IExecutor {
 			$results = $items_new;
 			return $results;
 		} );
+
+		// To clear on update/delete
+		$this->putRequestsForItems( $cacheKey, $items );
 
 		return $items;
 	}
