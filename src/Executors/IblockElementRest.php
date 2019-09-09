@@ -437,6 +437,18 @@ class IblockElementRest implements IExecutor {
 			$offerPropsHandle = CIBlockElement::GetProperty( $offerIBlockId, $offerId );
 			$offerPropsArrs = [];
 			while( $offerPropsArr = $offerPropsHandle->Fetch() ){
+				$offerPropsArr_new = array_filter( $offerPropsArr, function( $propValue ){
+
+					// Omit null values, empty arrays, empty strings, pass integer 0s
+					if( is_array( $propValue ) ){
+						$propIsNeeded = ! empty( $propValue );
+					} else {
+						$propIsNeeded = ( 0 < strlen( $propValue ) );
+					}
+
+					return $propIsNeeded;
+				} );
+				$offerPropsArr = $offerPropsArr_new;
 
 				// 'CML2_LINK' is the linked product Id
 				if( 'CML2_LINK' == $offerPropsArr[ 'CODE' ] ){
