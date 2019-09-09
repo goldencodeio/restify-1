@@ -453,11 +453,13 @@ class IblockElementRest implements IExecutor {
 				// 'CML2_LINK' is the linked product Id
 				if( 'CML2_LINK' == $offerPropsArr[ 'CODE' ] ){
 					$offerArr[ 'PRODUCT_ID' ] = $offerPropsArr[ 'VALUE' ];
-				} else {
+				} elseif( ! empty( $offerPropsArr ) ) {
 					$offerPropsArrs[] = $offerPropsArr;
 				}
 			}
-			$offerArr[ 'PROPS' ] = $offerPropsArrs;
+			if ( ! empty( $offerPropsArrs ) ){
+				$offerArr[ 'PROPS' ] = $offerPropsArrs;
+			}
 
 			$priceArr =  GetCatalogProductPrice( $offerId, 1 );
 			$offerArr[ 'PRICE' ] = $priceArr;
