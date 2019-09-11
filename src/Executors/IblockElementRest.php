@@ -461,7 +461,7 @@ class IblockElementRest implements IExecutor {
 				$offerArr[ 'PROPS' ] = $offerPropsArrs;
 			}
 
-			$priceArr =  GetCatalogProductPrice( $offerId, 1 );
+			$priceArr = \CCatalogProduct::GetOptimalPrice( $offerId );
 			$offerArr[ 'PRICE' ] = $priceArr;
 
 			$offerArrs[] = $offerArr;
