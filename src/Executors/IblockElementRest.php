@@ -296,6 +296,14 @@ class IblockElementRest implements IExecutor {
 		}
 		$items = $items_new;
 
+		$items_new = [];
+		foreach ( $items as $item ){
+			$itemId = $item[ 'ID' ];
+			$item[ 'PRICE' ] = \CCatalogProduct::GetOptimalPrice( $itemId );
+			$items_new[] = $item;
+		}
+		$items = $items_new;
+
 		$results = $items;
 		return $results;
 
