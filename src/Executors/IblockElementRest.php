@@ -438,7 +438,6 @@ class IblockElementRest implements IExecutor {
 				'ID', 'NAME', "PROPERTY_$offerPropId",
 			]
 		);
-		$offerIds = [];
 		while( $offerArr = $offerHandle->GetNext() ){
 			$offerId = $offerArr[ 'ID' ];
 
@@ -470,36 +469,13 @@ class IblockElementRest implements IExecutor {
 				$offerArr[ 'PROPS' ] = $offerPropsArrs;
 			}
 
-			$offerIds[]				= $offerId;
-			$offersHash[ $offerId ]	= $offerArr;
+			$priceArr = \CCatalogProduct::GetOptimalPrice( $offerId );
+			$offerArr[ 'PRICE' ] = $priceArr;
+
+			$offerArrs[] = $offerArr;
 		}
 
-		$propsSth = \Bitrix\Catalog\ProductTable::getList( [ 'filter' => [
-				'@ID' => $offerIds,
-			],
-		] );
-		while ( $propsArr = $propsSth->fetch() ){
-			$offerId = $propsArr[ 'ID' ];
-			$offerArr = $offersHash[ $offerId ][ 'PROPS' ];
-			$offerArr = array_merge( $offerArr, $propsArr );
-			$offerArr[ 'CAN_BUY'  ] = self::getItemCanBuy( $offerArr );
-			$offersHash[ $offerId ][ 'PROPS' ] = $offerArr;
-		}
-
-		$pricesSth = \Bitrix\Catalog\PriceTable::getList( [ 'filter' => [
-				'@PRODUCT_ID' => $offerIds,
-			],
-		] );
-		while ( $pricesArr = $pricesSth->fetch() ){
-			$offerId = $pricesArr[ 'PRODUCT_ID' ];
-			$offerArr = $offersHash[ $offerId ];
-			$offerArr[ 'PRICE' ]	=  $pricesArr;
-			$offerArr[ 'PROPS' ][ 'CAN_BUY'  ] = self::getItemCanBuy(
-				array_merge( $offerArr[ 'PROPS' ], $pricesArr ) );
-			$offersHash[ $offerId ] = $offerArr;
-		}
-
-		foreach( $offersHash as $offerId => $offerArr ){
+		foreach( $offerArrs as $offerArr ){
 			if( ! empty( $offerArr[ 'PRODUCT_ID' ] ) ){
 				$itemId = $offerArr[ 'PRODUCT_ID' ];
 				if ( ! empty( $itemsHash[ $itemId ] ) ){
@@ -671,23 +647,6 @@ class IblockElementRest implements IExecutor {
 		);
 	}
 
-	// Gets 'CAN_BUY' property based on hash's values
-	private function getItemCanBuy( $itemHash ){
-		$canBuy = $itemHash['PRICE'] && (
-			(
-				$itemHash['PRODUCT_CAN_BUY_ZERO'] === 'Y' ||
-				$itemHash['PRODUCT_NEGATIVE_AMOUNT_TRACE'] === 'Y' ||
-				(int) $itemHash['PRODUCT_QUANTITY'] > 0
-			) || (
-				$itemHash['CAN_BUY_ZERO'] === 'Y' ||
-				$itemHash['NEGATIVE_AMOUNT_TRACE'] === 'Y' ||
-				(int) $itemHash['QUANTITY'] > 0
-			)
-		);
-
-		return $canBuy;
-	}
-
 	public function catalogTransform(Event $event) {
 		$params = $event->getParameters();
 
@@ -698,7 +657,13 @@ class IblockElementRest implements IExecutor {
 
 		foreach ($params['result'] as $key => $item) {
 			$item['BASE_PRICE'] = CPrice::GetBasePrice($item['ID']);
-			$item['CAN_BUY'] = self::getItemCanBuy( $item['BASE_PRICE'] );
+			$item['CAN_BUY'] =
+				$item['BASE_PRICE']['PRICE'] &&
+				(
+					$item['BASE_PRICE']['PRODUCT_CAN_BUY_ZERO'] === 'Y' ||
+					$item['BASE_PRICE']['PRODUCT_NEGATIVE_AMOUNT_TRACE'] === 'Y' ||
+					(int) $item['BASE_PRICE']['PRODUCT_QUANTITY'] > 0
+				);
 
 			$prices = array_filter($this->prices, function ($p) use ($item) {
 				return $p !== $item['BASE_PRICE']['CATALOG_GROUP_NAME'];
