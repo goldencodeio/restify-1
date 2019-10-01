@@ -455,9 +455,9 @@ class IblockElementRest implements IExecutor {
 			// Take values from GetProperty() then from GetList()
 			list( $propName, $propValue ) = $this->getPropNamesValues();
 			$items = $this->getListing( $propName, $propValue );
-			$items_new = self::getOffers( $items );
+			$itemsNew = self::getOffers( $items );
 
-			$results = $items_new;
+			$results = $itemsNew;
 			return $results;
 		} );
 
