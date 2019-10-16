@@ -381,6 +381,69 @@ class IblockElementRest implements IExecutor {
 		}
 	}
 
+	// Get CAN_BUY_ZERO and other properties missing from GetOptimalPrice()
+	private function getPropsMissingFromOptimal( $items ){
+		$itemsNew = [];
+		foreach ( $items as $item ){
+
+		$priceIds = [];
+		if( !empty( $item[ 'OFFERS' ] ) ){
+
+			$offers = $item[ 'OFFERS' ];
+			$offersNew = [];
+			$offersHash = [];
+			foreach( $offers as $offer ){
+				$offerId = $offer[ 'ID' ];
+
+				// write to $offersHash and $priceIds
+				$offersHash[ $offerId ] = $offer;
+				if( !empty( $offer[ 'PRICE' ][ 'PRICE' ] ) ){
+					$priceId = $offer[ 'PRICE' ][ 'PRICE' ][ 'ID' ];
+					$priceIds[] = $priceId;
+				}
+			}
+
+			$query = new \Bitrix\Main\Entity\Query(\Bitrix\Catalog\PriceTable::getEntity());
+			$query->registerRuntimeField( 'b_catalog_product', [
+					'data_type' =>  \Bitrix\Catalog\ProductTable::getEntity(),
+					'reference' => [
+						'=this.PRODUCT_ID' => 'ref.ID',
+					],
+					'join_type' => 'INNER',
+				]
+			);
+			$query->setSelect( [ 'ID', 'QUANTITY_FROM', 'QUANTITY_TO', 'PRODUCT_ID',
+				'PRODUCT_CAN_BUY_ZERO'			=> 'b_catalog_product.CAN_BUY_ZERO',
+				'PRODUCT_NEGATIVE_AMOUNT_TRACE' => 'b_catalog_product.NEGATIVE_AMOUNT_TRACE',
+				'PRODUCT_QUANTITY'				=> 'b_catalog_product.QUANTITY',
+			] );
+			$query->setFilter( [
+				'@ID' => $priceIds,
+			] );
+
+			// Query some fields from database for every price found
+			$sth = $query->exec();
+			while( $priceArr = $sth->fetch() ){
+				$offerId = $priceArr[ 'PRODUCT_ID' ];
+
+				$priceArr['CAN_BUY'] = $priceArr['PRODUCT_CAN_BUY_ZERO'] === 'Y' ||
+					$priceArr['PRODUCT_NEGATIVE_AMOUNT_TRACE'] === 'Y' ||
+					(int) $priceArr['PRODUCT_QUANTITY'] > 0
+				;
+
+				// Find offer and put properties in place for it
+				$offer = $offersHash[ $offerId ];
+				$offer[ 'PRICE' ][ 'PRICE' ] = array_merge( $priceArr, $offer[ 'PRICE' ][ 'PRICE' ] );
+				$offersNew[] = $offer;
+			}
+			$item[ 'OFFERS' ] = $offersNew;
+
+		}
+		$itemsNew[] = $item;
+		}
+		return $itemsNew;
+	}
+
 	public function readMany() {
 
 		// Find in cache first
@@ -392,9 +455,11 @@ class IblockElementRest implements IExecutor {
 			// Take values from GetProperty() then from GetList()
 			list( $propName, $propValue ) = $this->getPropNamesValues();
 			$items = $this->getListing( $propName, $propValue );
-			$items_new = self::getOffers( $items );
+			$itemsNew = self::getOffers( $items );
+			$items = $itemsNew;
+			$itemsNew = self::getPropsMissingFromOptimal( $items );
 
-			$results = $items_new;
+			$results = $itemsNew;
 			return $results;
 		} );
 
