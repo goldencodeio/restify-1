@@ -13,11 +13,14 @@ use CSaleOrder;
 use CSaleOrderProps;
 use CSaleOrderPropsValue;
 use CSalePersonType;
+use Bitrix\Sale\Helpers\Admin\OrderEdit;
 use Emonkak\HttpException\BadRequestHttpException;
 use Emonkak\HttpException\InternalServerErrorHttpException;
 use Emonkak\HttpException\NotFoundHttpException;
 use Emonkak\HttpException\UnauthorizedHttpException;
 use Exception;
+
+require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/lib/helpers/admin/orderedit.php");
 
 class SaleOrderRest implements IExecutor {
 	use RestTrait;
@@ -109,52 +112,30 @@ class SaleOrderRest implements IExecutor {
 
 		global $APPLICATION, $USER;
 
-		$basket = new CSaleBasket();
+		$basketSaved = new CSaleBasket();
 		$order = new CSaleOrder();
 
-		if (!$this->body['DELIVERY_ID']) {
-			throw new BadRequestHttpException(Loc::getMessage('SALE_ORDER_CREATE_DELIVERY_EMPTY'));
-		}
-		if (!$this->body['PAY_SYSTEM_ID']) {
-			throw new BadRequestHttpException(Loc::getMessage('SALE_ORDER_CREATE_PAY_SYSTEM_EMPTY'));
-		}
+		// Find basket values
+		$fuserId = $basketSaved->GetBasketUserID();
 
-		// Count order price
-		$currentCart = $basket->GetBasketUserID();
-
-		$dbBasketItems = $basket->GetList([], [
-			'FUSER_ID' => $currentCart,
+		$itemsHandle = $basketSaved->GetList([], [
+			'FUSER_ID' => $fuserId,
 			'LID' => SITE_ID,
 			'ORDER_ID' => 'NULL'
 		]);
-		$orderPrice = 0;
-		while ($item = $dbBasketItems->GetNext(true, false)) {
-			$orderPrice += (float) $item['PRICE'] * $item['QUANTITY'];
+		$items = [];
+		while ($item = $itemsHandle->GetNext(true, false)) {
+			$itemId = $item[ 'PRODUCT_ID' ];
+			$quantity = $item[ 'QUANTITY' ];
+			$canBuy = $item[ 'CAN_BUY' ];
+			$items[] = [ 'OFFER_ID' => $itemId,
+				'QUANTITY' => $quantity, 'CAN_BUY' => $canBuy,
+			];
 		}
 
-		if ($orderPrice === 0) {
+		if ( empty( $items ) ) {
 			throw new BadRequestHttpException(Loc::getMessage('SALE_ORDER_CREATE_BASKET_EMPTY'));
 		}
-
-		// Delivery
-		$delivery = \Bitrix\Sale\Delivery\Services\Manager::getById((int) $this->body['DELIVERY_ID']);
-		$deliveryPrice = $delivery['CONFIG']['MAIN']['PRICE'];
-
-		if (!empty($delivery['CONFIG']['MAIN']['MARGIN_TYPE'])) {
-			$deliveryPrice =
-				$delivery['CONFIG']['MAIN']['MARGIN_TYPE'] === 'CURRENCY' ?
-					$delivery['CONFIG']['MAIN']['MARGIN_VALUE'] : // Fixed price
-					$orderPrice * (int) $delivery['CONFIG']['MAIN']['MARGIN_VALUE'] / 100; // Percent
-		}
-
-		$defaults = [
-			'CURRENCY' => CurrencyTable::getList([
-				'filter' => [
-					'BASE' => 'Y',
-				],
-			])->fetch()['CURRENCY'],
-			'PERSON_TYPE_ID' => (new CSalePersonType())->GetList()->Fetch()['ID'],
-		];
 
 		$userId = $USER->GetID();
 		if( empty( $userId ) ) $userId = $this->getUserOrderAnon();
@@ -165,58 +146,99 @@ class SaleOrderRest implements IExecutor {
 			);
 		}
 
-		$overrides = [
-			'LID' => SITE_ID,
-			'PAYED' => 'N',
-			'CANCELED' => 'N',
-			'STATUS_ID' => 'N',
-			'ALLOW_DELIVERY' => 'Y',
-			'PRICE' => $orderPrice,
-			'PRICE_DELIVERY' => $deliveryPrice,
-			'USER_ID' => $userId,
+
+		// Add props and coupons
+		$orderProps = [];
+		$propsIntroHandle = (new CSaleOrderProps())->GetList();
+		$i = 0;
+		while ($propIntro = $propsIntroHandle->GetNext(true, false)) {
+			$i ++; // starting from '1'
+			$propCode =  $propIntro[ 'CODE' ];
+			if ( isset( $this->body[$propCode] ) ){
+				$propValue = $this->body[$propCode];
+				$orderProps[ $i ] = $propValue;
+			}
+		}
+
+		$coupons = (string) $this->body[ 'COUPONS' ];
+
+		// Every value is taken; arrange them for function
+		// no more user input below
+		$createOrderVars = [
+		  'SITE_ID' => SITE_ID,
+		  'USER_ID' => $userId,
 		];
+		$createOrderVarsItems = [
+		];
+		for ( $i = 0; $i < count( $items ); $i ++ ){
+			$item = $items[ $i ];
+			$key = 'n' . ( $i + 2 );
 
-		$schemaKeys = array_keys($this->schema);
-		$fields = array_merge(
-			$defaults,
-			array_filter($this->body, function ($key) use ($schemaKeys) {
-				return in_array($key, $schemaKeys);
-			}, ARRAY_FILTER_USE_KEY),
-			$overrides
-		);
+			$itemArr = $item;
+			$itemArr[ 'MODULE' ] = 'catalog';
 
-		// XXX Bitrix\Sale\Compatible\OrderCompatibility
-		// fillShipmentCollectionFromRequest(){
-		// $deliveryCode = < ... > $fields['DELIVERY_ID']
-		// $deliveryId = \CSaleDelivery::getIdByCode($deliveryCode);
-		$fields[ 'DELIVERY_ID' ] = \CSaleDelivery::getCodeById(
-			$fields[ 'DELIVERY_ID' ]
-		);
+			$createOrderVarsItems[ $key ] = $itemArr;
+		}
+
+		$createOrderVars[ 'PRODUCT' ] = $createOrderVarsItems;
+		$createOrderVars[ 'PROPERTIES' ] = $orderProps;
+
+		$result = new \Bitrix\Sale\Result();
+
+		// Coupons
+		$couponsArg = [ 'COUPONS' => $coupons, ];
 
 		// Create order
-		$orderId = $order->Add($fields);
+		$order = OrderEdit::createOrderFromForm($createOrderVars, null, true, [], $result);
+		if( $order && $result->isSuccess() ){
 
-		if (!$orderId) {
+			// Calculate
+			$rv = OrderEdit::saveCoupons($order->getUserId(), $couponsArg);
+			if(!$rv) {
+				throw new InternalServerErrorHttpException(
+					$APPLICATION->LAST_ERROR ?: Loc::getMessage('SALE_ORDER_CREATE_ERROR')
+				);
+			}
+
+			// To apply discounts depended on paysystems, or delivery services
+			if (!($orderBasket = $order->getBasket()))
+				throw new BadRequestHttpException(Loc::getMessage('SALE_ORDER_CREATE_BASKET_EMPTY'));
+
+			// Put new cost values to basket object
+			$rv = $orderBasket->refreshData( [ 'PRICE', 'QUANTITY', 'COUPONS', ] );
+			if (!$rv->isSuccess()) {
+				throw new InternalServerErrorHttpException(
+					$APPLICATION->LAST_ERROR ?: Loc::getMessage('SALE_ORDER_CREATE_ERROR')
+				);
+			}
+
+			$rv = $order->verify();
+			if ( !$rv->isSuccess() ){
+				throw new InternalServerErrorHttpException(
+					$APPLICATION->LAST_ERROR ?: Loc::getMessage('SALE_ORDER_CREATE_ERROR')
+				);
+			}
+
+			// Save
+			$rv = $order->save();
+
+			// Throw with errors, if any
+			if (!$rv->isSuccess()) {
+					$result->addErrors($rv->getErrors());
+				throw new InternalServerErrorHttpException(
+					$APPLICATION->LAST_ERROR ?: Loc::getMessage('SALE_ORDER_CREATE_ERROR')
+				);
+			}
+		} else {
 			throw new InternalServerErrorHttpException(
 				$APPLICATION->LAST_ERROR ?: Loc::getMessage('SALE_ORDER_CREATE_ERROR')
 			);
 		}
 
-		// Add props
-		$orderPropsQ = (new CSaleOrderProps())->GetList();
-		while ($prop = $orderPropsQ->GetNext(true, false)) {
-			if (isset($this->body[$prop['CODE']])) {
-				(new CSaleOrderPropsValue())->Add([
-					'ORDER_ID' => $orderId,
-					'ORDER_PROPS_ID' => $prop['ID'],
-					'NAME' => $prop['NAME'],
-					'CODE' => $prop['CODE'],
-					'VALUE' => $this->body[$prop['CODE']]
-				]);
-			}
-		}
+		// Order was successful; empty out the user's cart
+		$basketSaved->DeleteAll( $fuserId );
 
-		$basket->OrderBasket($orderId, $currentCart);
+		$orderId = $order->getId();
 
 		return [[
 			'result' => 'ok',
