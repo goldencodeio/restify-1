@@ -431,7 +431,7 @@ class IblockElementRest implements IExecutor {
 					(int) $priceArr['PRODUCT_QUANTITY'] > 0
 				;
 
-				// Find offer and put propertires in place for it
+				// Find offer and put properties in place for it
 				$offer = $offersHash[ $offerId ];
 				$offer[ 'PRICE' ][ 'PRICE' ] = array_merge( $priceArr, $offer[ 'PRICE' ][ 'PRICE' ] );
 				$offersNew[] = $offer;
