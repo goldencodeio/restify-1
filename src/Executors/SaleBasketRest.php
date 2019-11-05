@@ -120,4 +120,157 @@ class SaleBasketRest implements IExecutor {
 			$this->success(Loc::getMessage('SALE_BASKET_DELETE')),
 		];
 	}
+
+	// Function
+	// Returns iblock's id based on item's id
+	// Takes	:	Int id of item in catalog;
+	// Returns	:	Int id of 'iblock'
+	private static function getIBlockIdByItemId( $itemId ){
+		$iblockId = null;
+
+		$iblockSth = \Bitrix\Iblock\ElementTable::getlist([ 'filter' => [
+				'ID' => $itemId,
+			], 'select' => [ 'IBLOCK_ID' ],
+		]);
+		$itemArr = $iblockSth->fetch();
+		if( empty( $itemArr ) ){
+			throw new NotFoundHttpException();
+		} else{
+			$itemArrMore = $iblockSth->fetch();
+			if ( empty( $itemArrMore ) ) {
+				$iblockId = $itemArr[ 'IBLOCK_ID' ];
+			} else {
+				throw new NotFoundHttpException();
+			}
+		}
+		return $iblockId;
+	}
+
+	// Function
+	// Returns item's properties' names to be set into the basket based on
+	// item's id
+	// Takes	:	Int id of item's 'iblock' in catalog;
+	//				Int id of item in catalog;
+	// Returns	:	Array[Str] item's properties' names
+	private static function getPropsKeys( $iblockId, $itemId ){
+		global $USER_FIELD_MANAGER;
+		$propsKeysStr = '[]';
+
+		$userFields = $USER_FIELD_MANAGER->GetUserFields( "ASD_IBLOCK" );
+		if( empty( $userFields ) ){
+			throw new NotFoundHttpException();
+		} else {
+			if( empty( $userFields[ 'UF_PROPS_TO_ORDER' ] ) ){
+				throw new NotFoundHttpException();
+			} else {
+				$propsToOrder = $userFields[ 'UF_PROPS_TO_ORDER' ] ;
+				if ( empty( $propsToOrder[ 'VALUE' ] ) ){
+					if ( empty( $propsToOrder[ 'SETTINGS' ] ) ){
+						throw new NotFoundHttpException();
+					} else {
+						if ( empty( $propsToOrder[ 'SETTINGS' ][ 'DEFAULT_VALUE' ] ) ){
+							throw new NotFoundHttpException();
+						} else {
+
+							// Take default value
+							$propsKeysStr = $propsToOrder[ 'SETTINGS' ][ 'DEFAULT_VALUE' ];
+						}
+					}
+				} else {
+
+					// Take configured value
+					$propsKeysStr = $propsToOrder[ 'VALUE' ];
+				}
+			}
+		}
+
+		$propsKeys = json_decode( $propsKeysStr );
+		if( empty( $propsKeys ) ){
+			throw new NotFoundHttpException();
+		}
+
+		return $propsKeys;
+	}
+
+	// Function
+	// Returns item's properties' names
+	// Takes	:	Int iblock's id;
+	//				Int item's id;
+	//				Array[Str] properties' codes
+	// Returns	:	Array[Str] properties human-readable names
+	private static function getPropsNames( $iblockId, $itemId, $propsKeys ){
+		$propsNames = [];
+		$propsHash	= [];
+		foreach ( $propsKeys as $propsKey ){
+			$propsHash[ $propsKey ] = true;
+		}
+
+		$propHandle	= \CIBlockElement::GetProperty( $iblockId, $itemId, $propsKeys );
+		while ( $propArr = $propHandle->Fetch() ){
+			$code = $propArr[ 'CODE' ];
+			if( ! empty( $propsHash[ $code ] ) ){
+				$name = $propArr[ 'NAME' ];
+				$propsNames[ $code ] = $name;
+			}
+		}
+
+		return $propsNames;
+	}
+
+	// Function
+	// Returns item's properties as a set keyed by argument
+	// Takes	:	Int id of item in catalog;
+	// 				Array[Str] of properties' keys
+	// Returns	:	Array item's properties listed in argument
+	private static function getItemPropsByKeys( $iblockId, $itemId, $propsKeys ){
+		$props = [];
+		list( $getListProps, $getListPropsSuffixed ) = [ [], [], ];
+		foreach( $propsKeys as $propCode ){
+			$propCodePrefixed = "PROPERTY_$propCode";
+			$propCodeSuffixed = "PROPERTY_$propCode" . "_VALUE";
+
+			$getListProps[]			= $propCodePrefixed;
+			$getListPropsSuffixed[]	= $propCodeSuffixed;
+		}
+		$propsNames = self::getPropsNames( $iblockId, $itemId, $propsKeys );
+
+		$propsHandle = \CIBlockElement::GetList( [], [ 'IBLOCK_ID' => $iblockId,
+				'ID' => $itemId,
+			], false, false, $getListProps
+		);
+		while( $propArr = $propsHandle->Fetch() ){
+			$propKeys = array_keys( $propArr );
+			$propKeysNeeded = array_intersect( $propKeys, $getListPropsSuffixed );
+			foreach( $propKeysNeeded as $key ){
+				$code = preg_replace( '/^PROPERTY_(.+)_VALUE$/', '$1', $key );
+				$props[] = [ 'NAME' => $propsNames[ $code ], 'VALUE' => $propArr[ $key ],
+					'CODE' => $code,
+				];
+			}
+		}
+		return $props;
+	}
+
+	// Function
+	// Returns item's properties as a set keyed by the one of iblock's 'user
+	// field's
+	// Takes	:	Int id of item in catalog
+	// Returns	:	Array item's properties listed in iblock's 'user field'
+	private static function getItemProps( $itemId ){
+		$iblockId	= self::getIBlockIdByItemId( $itemId );
+		$propsKeys	= self::getPropsKeys( $iblockId, $itemId );
+		$props 		= self::getItemPropsByKeys( $iblockId, $itemId, $propsKeys );
+
+		return $props;
+	}
+
+	// Function
+	// Changes array argument to contain item's properties in 'PROPS'
+	// taken as a set keyed by the one of iblock's 'user field's
+	public static function putItemPropsToBasket ( &$itemArr ){
+		$itemId		= $itemArr[ 'PRODUCT_ID' ];
+		$propsArr	= self::getItemProps( $itemId );
+
+		$itemArr[ 'PROPS' ] = array_merge( $itemArr[ 'PROPS' ], $propsArr );
+	}
 }
