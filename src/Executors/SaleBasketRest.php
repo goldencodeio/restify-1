@@ -50,6 +50,17 @@ class SaleBasketRest implements IExecutor {
 			'LID' => SITE_ID,
 			'ORDER_ID' => 'NULL',
 		]);
+		$basketArr = $this->getBasketArr();
+		$result = $basketArr;
+		return [ $result ];
+	}
+
+	private function _read() {
+		$this->filter = array_merge($this->filter, [
+			'FUSER_ID' => (int) CSaleBasket::GetBasketUserID(true),
+			'LID' => SITE_ID,
+			'ORDER_ID' => 'NULL',
+		]);
 		return $this->readORM();
 	}
 
@@ -71,7 +82,7 @@ class SaleBasketRest implements IExecutor {
 		$action = 'add';
 		$this->filter = ['PRODUCT_ID' => $id];
 		$this->select = ['ID'];
-		$item = array_pop($this->read());
+		$item = array_pop($this->_read());
 		if ($item) {
 			$action = 'update';
 		}
@@ -104,7 +115,7 @@ class SaleBasketRest implements IExecutor {
 
 		$this->filter = ['PRODUCT_ID' => $id];
 		$this->select = ['ID'];
-		$item = array_pop($this->read());
+		$item = array_pop($this->_read());
 
 		$result = true;
 		if (isset($item)) {
@@ -272,5 +283,105 @@ class SaleBasketRest implements IExecutor {
 		$propsArr	= self::getItemProps( $itemId );
 
 		$itemArr[ 'PROPS' ] = array_merge( $itemArr[ 'PROPS' ], $propsArr );
+	}
+
+	// requires the 'Bitrix\Sale\AdminPage\AjaxProcessor' class
+	// to find and display basket variables
+	function requireAdminOrderAjax(){
+		global $APPLICATION;
+
+		$orderAjaxArr = file( $_SERVER[ 'DOCUMENT_ROOT' ] . '/bitrix/modules/sale/admin/order_ajax.php' );
+		$orderAjaxStr = array_shift( $orderAjaxArr );
+		$requestFound = false;
+		$dieFound = false;
+		$orderAjaxStr = '';
+		foreach( $orderAjaxArr as $str ){
+			if( $requestFound ){
+				if( ! $dieFound ){
+					$dieFound = ( false !== strpos( $str, 'die();' ) );
+					if( $dieFound ) { continue; }
+				}
+			} else {
+
+				// request not found yet
+				$requestFound = ( false !== strpos( $str, '$_REQUEST' ) );
+			}
+
+			// Every variable is known for simple decision to make
+			if( $dieFound || ( ! $requestFound ) ){
+				$orderAjaxStr = $orderAjaxStr . $str;
+			}
+		}
+
+		try {
+			eval( $orderAjaxStr );
+		} catch (Exception $exception) {
+			throw new InternalServerErrorHttpException($APPLICATION->LAST_ERROR);
+		}
+	}
+
+	// Gets fake 'request' object for 'addProductToBasket' based on
+	// basket items stored
+	function getRequestFromItems( $items ){
+
+		// $items assumed as non-empty
+		$firstItem = array_shift( $items );
+		$productId	= $firstItem[ 'PRODUCT_ID'	];
+		$quantity	= $firstItem[ 'QUANTITY'	];
+
+		$request = [
+		  'action' => 'addProductToBasket',
+		  'productId' => $productId,
+		  'quantity' => $quantity,
+		  'formData' =>
+		  [
+			'SITE_ID' => 's1',
+			'PRODUCT' => [],
+		  ],
+		  'refreshOrderData' => 'Y',
+		];
+
+		for ( $i = 0; $i < count(  $items ); $i ++ ){
+			$item = $items[ $i ];
+			$offerId	= $item[ 'PRODUCT_ID'	];
+			$quantity	= $item[ 'QUANTITY'		];
+
+			$productArrKey = 'n' . ( $i + 2 );
+			$productArrVal = [
+				'PRODUCT_PROVIDER_CLASS' => '\\Bitrix\\Catalog\\Product\\CatalogProvider',
+				'MODULE' => 'catalog', 'OFFER_ID' => $offerId, 'QUANTITY' => $quantity,
+			];
+
+			$request[ 'formData' ][ 'PRODUCT' ][ $productArrKey ] = $productArrVal;
+		}
+
+			return $request;
+	}
+
+	// Take result of basket save on server (e. g., without discounts)
+	// and turn it into a result to display (e. g., with discounts )
+	function getBasketArr(){
+		global $USER, $APPLICATION;
+		self::requireAdminOrderAjax();
+		$result = [];
+
+		$items =  $this->_read();
+
+		if( ! empty( $items ) ){
+
+			$request = self::getRequestFromItems( $items );
+
+			// Simulate addition of goods to client-side basket of admin
+			$processor = new \Bitrix\Sale\AdminPage\AjaxProcessor($USER->GetID(), $request );
+			$result = $processor->processRequest();
+			if ( ! $result->isSuccess() ){
+				throw new InternalServerErrorHttpException($APPLICATION->LAST_ERROR);
+			}
+
+			$result = $result->get( 'ORDER_DATA' );
+		}
+
+		$basket = $result;
+		return $basket;
 	}
 }
