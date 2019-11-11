@@ -44,6 +44,7 @@ class SaleBasketRest implements IExecutor {
 		$this->buildSchema();
 	}
 
+	// Read basket data
 	public function read() {
 
 		// outputs only first array element, e. g., basket hash
@@ -59,6 +60,7 @@ class SaleBasketRest implements IExecutor {
 		return [ $basketArr ];
 	}
 
+	// Read basket items only
 	private function _read() {
 		$this->filter = array_merge($this->filter, [
 			'FUSER_ID' => (int) CSaleBasket::GetBasketUserID(true),
