@@ -392,6 +392,19 @@ class SaleBasketRest implements IExecutor {
 		$newItems = [];
 		foreach ( $itemsOrder as $key ){
 			$item = $items[ $key ];
+
+			if ( ! empty( $item[ 'PROPS' ] ) ){
+				$itemProps = $item[ 'PROPS' ];
+				$newItemProps = [];
+				foreach( $itemProps as $itemProp ){
+					$code = $itemProp[ 'CODE' ];
+					if ( 'NET_COST' != $code ){
+						$newItemProps[] = $itemProp;
+					}
+				}
+				$item[ 'PROPS' ] = $newItemProps;
+			}
+
 			$newItems[] = $item;
 		}
 
