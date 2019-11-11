@@ -329,7 +329,7 @@ class SaleBasketRest implements IExecutor {
 	function getRequestFromItems( $items ){
 
 		// $items assumed as non-empty
-		$firstItem = array_shift( $items );
+		$firstItem = array_pop( $items );
 		$productId	= $firstItem[ 'PRODUCT_ID'	];
 		$quantity	= $firstItem[ 'QUANTITY'	];
 
