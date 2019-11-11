@@ -45,14 +45,18 @@ class SaleBasketRest implements IExecutor {
 	}
 
 	public function read() {
+
+		// outputs only first array element, e. g., basket hash
+		$this->registerOneItemTransformHandler();
+
 		$this->filter = array_merge($this->filter, [
 			'FUSER_ID' => (int) CSaleBasket::GetBasketUserID(true),
 			'LID' => SITE_ID,
 			'ORDER_ID' => 'NULL',
 		]);
-		$basketArr = $this->getBasketArr();
-		$result = $basketArr;
-		return [ $result ];
+		$basketArr = $this->getBasketArr(); // calls ->registerBasicTransformHandler();
+
+		return [ $basketArr ];
 	}
 
 	private function _read() {
