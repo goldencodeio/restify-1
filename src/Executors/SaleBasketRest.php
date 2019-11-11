@@ -362,6 +362,40 @@ class SaleBasketRest implements IExecutor {
 			return $request;
 	}
 
+	// Take 'PROVIDER_DATA' key from item and deserialize it
+	// Takes	: non-empty basket array
+	private function unserializeProviderData( $items ){
+		$newItems = [];
+
+		foreach( $items as $key => $item ){
+			$newItem = $item;
+			$itemUnserialized = unserialize( $item[ 'PROVIDER_DATA' ] );
+			$newItem[ 'PROVIDER_DATA' ] = $itemUnserialized;
+			if( ! empty( $newItem[ 'PROVIDER_DATA' ][ 'DIMENSIONS' ] ) ){
+				$dimensions = $newItem[ 'PROVIDER_DATA' ][ 'DIMENSIONS' ];
+				$newDimensions = unserialize( $dimensions );
+				$newItem[ 'PROVIDER_DATA' ][ 'DIMENSIONS' ] = $newDimensions;
+				if( ! empty ( $newItem[ 'DIMENSIONS' ] ) ){
+					$newItem[ 'DIMENSIONS' ] = $newDimensions;
+				}
+			}
+			$newItems[ $key ] = $newItem;
+		}
+
+		return $newItems;
+	}
+
+	// Sort items by order supplied
+	private function sortByItemsOrder( $items, $itemsOrder ){
+		$newItems = [];
+		foreach ( $itemsOrder as $key ){
+			$item = $items[ $key ];
+			$newItems[] = $item;
+		}
+
+		return $newItems;
+	}
+
 	// Take result of basket save on server (e. g., without discounts)
 	// and turn it into a result to display (e. g., with discounts )
 	function getBasketArr(){
@@ -385,7 +419,17 @@ class SaleBasketRest implements IExecutor {
 			$result = $result->get( 'ORDER_DATA' );
 		}
 
-		$basket = $result;
-		return $basket;
+		if( ! empty ($result[ 'BASKET' ] ) ){
+			$basket = $result[ 'BASKET' ];
+			$basket[ 'ITEMS' ] = self::unserializeProviderData( $basket[ 'ITEMS' ] );
+			if( !empty( $basket[ 'ITEMS_ORDER' ] ) ){
+				$itemsOrder = $basket[ 'ITEMS_ORDER' ];
+				$basket[ 'ITEMS' ] = self::sortByItemsOrder(
+					$basket[ 'ITEMS' ], $itemsOrder );
+			}
+			$result = $basket;
+		}
+
+		return $result;
 	}
 }
