@@ -455,7 +455,9 @@ class IblockElementRest implements IExecutor {
 		$items = $this->tryCacheThenCall( $cacheKey, function() {
 
 			// Take values from GetProperty() then from GetList()
-			list( $propName, $propValue ) = $this->getPropNamesValues();
+			list( $propName, $propValue ) = ( empty( $this->filter['ID'] ) )
+				? [ [], [], ] : $this->getPropNamesValues()
+			;
 			$items = $this->getListing( $propName, $propValue );
 			$itemsNew = self::getOffers( $items );
 			$items = $itemsNew;
