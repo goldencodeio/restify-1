@@ -572,22 +572,24 @@ class IblockElementRest implements IExecutor {
 	}
 
 	public function readOne($id) {
+		$results = [];
 		$this->registerOneItemTransformHandler();
 
 		// Set id to filter
-		if (is_numeric($id)) {
+		$id = CIBlockFindTools::GetElementID($id, $id, null, null, $this->filter);
+		if( ! empty( $id ) ){
+
+			// Used to get properties
 			$this->filter['ID'] = $id;
-		} else {
-			$this->filter['CODE'] = $id;
-		}
 
-		// Get only one item
-		$this->navParams = ['nPageSize' => 1];
+			// Get only one item
+			$this->navParams = ['nPageSize' => 1];
 
-		$results = $this->readMany();
+			$results = $this->readMany();
 
-		if (!count($results)) {
-			throw new NotFoundHttpException();
+			if (!count($results)) {
+				throw new NotFoundHttpException();
+			}
 		}
 
 		return $results;
