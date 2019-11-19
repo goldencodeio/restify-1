@@ -240,7 +240,8 @@ class IblockElementRest implements IExecutor {
 
 	// Object method
 	// Gets iBlock's  properties with GetList()
-	// Takes	: Hash[Str] of properties' codes and their names,
+	// Takes	: Array[Str] of properties' names,
+	// 			  Array[Str] of properties' values
 	// Returns	: Hash[ Str or Hash[Str] ]
 	// 			  where keys are properties' codes surrounded with
 	// 			  'PROPERTY_'  and '_VALUE',
