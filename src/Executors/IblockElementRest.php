@@ -42,7 +42,6 @@ class IblockElementRest implements IExecutor {
 	}
 
 	protected $iblockId;
-	protected $elementId;
 	protected $prices = [];
 	public $propName = [];
 
@@ -126,6 +125,7 @@ class IblockElementRest implements IExecutor {
 	// Object method
 	// Gets iBlock's  properties with GetProperty()
 	// Takes	: n/a
+	// Requires	: $this->filter['ID'] to be set
 	// Changes	: $this->select
 	// Returns	: [
 	// 					Hash[Str] of properties' codes and names,
@@ -136,11 +136,13 @@ class IblockElementRest implements IExecutor {
 		$propValue = [];
 		$isMultiple = false;
 		$iBlockId = IblockUtility::getIblockIdByCode('catalog');
+		$itemId = $this->filter['ID'];
+
 
 		// query properties with GetProperty()
 		$rsObject = CIBlockElement::GetProperty(
 			$iBlockId,
-			$this->elementId,
+			$itemId,
 			array(), array()
 		);
 		while($arObject = $rsObject->Fetch()) {
@@ -569,7 +571,6 @@ class IblockElementRest implements IExecutor {
 
 	public function readOne($id) {
 		$this->registerOneItemTransformHandler();
-		$this->elementId = $id;
 
 		// Set id to filter
 		if (is_numeric($id)) {
