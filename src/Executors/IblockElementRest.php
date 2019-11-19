@@ -140,7 +140,7 @@ class IblockElementRest implements IExecutor {
 		// query properties with GetProperty()
 		$rsObject = CIBlockElement::GetProperty(
 			$iBlockId,
-			$this->$elementId,
+			$this->elementId,
 			array(), array()
 		);
 		while($arObject = $rsObject->Fetch()) {
@@ -569,7 +569,7 @@ class IblockElementRest implements IExecutor {
 
 	public function readOne($id) {
 		$this->registerOneItemTransformHandler();
-		$this->$elementId = $id;
+		$this->elementId = $id;
 
 		// Set id to filter
 		if (is_numeric($id)) {
