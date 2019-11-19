@@ -42,7 +42,6 @@ class IblockElementRest implements IExecutor {
 	}
 
 	protected $iblockId;
-	protected $elementId;
 	protected $prices = [];
 	public $propName = [];
 
@@ -126,6 +125,7 @@ class IblockElementRest implements IExecutor {
 	// Object method
 	// Gets iBlock's  properties with GetProperty()
 	// Takes	: n/a
+	// Requires	: $this->filter['ID'] to be set
 	// Changes	: $this->select
 	// Returns	: [
 	// 					Hash[Str] of properties' codes and names,
@@ -136,11 +136,13 @@ class IblockElementRest implements IExecutor {
 		$propValue = [];
 		$isMultiple = false;
 		$iBlockId = IblockUtility::getIblockIdByCode('catalog');
+		$itemId = $this->filter['ID'];
+
 
 		// query properties with GetProperty()
 		$rsObject = CIBlockElement::GetProperty(
 			$iBlockId,
-			$this->$elementId,
+			$itemId,
 			array(), array()
 		);
 		while($arObject = $rsObject->Fetch()) {
@@ -238,7 +240,8 @@ class IblockElementRest implements IExecutor {
 
 	// Object method
 	// Gets iBlock's  properties with GetList()
-	// Takes	: Hash[Str] of properties' codes and their names,
+	// Takes	: Array[Str] of properties' names,
+	// 			  Array[Str] of properties' values
 	// Returns	: Hash[ Str or Hash[Str] ]
 	// 			  where keys are properties' codes surrounded with
 	// 			  'PROPERTY_'  and '_VALUE',
@@ -453,7 +456,9 @@ class IblockElementRest implements IExecutor {
 		$items = $this->tryCacheThenCall( $cacheKey, function() {
 
 			// Take values from GetProperty() then from GetList()
-			list( $propName, $propValue ) = $this->getPropNamesValues();
+			list( $propName, $propValue ) = ( empty( $this->filter['ID'] ) )
+				? [ [], [], ] : $this->getPropNamesValues()
+			;
 			$items = $this->getListing( $propName, $propValue );
 			$itemsNew = self::getOffers( $items );
 			$items = $itemsNew;
@@ -568,23 +573,24 @@ class IblockElementRest implements IExecutor {
 	}
 
 	public function readOne($id) {
+		$results = [];
 		$this->registerOneItemTransformHandler();
-		$this->$elementId = $id;
 
 		// Set id to filter
-		if (is_numeric($id)) {
+		$id = CIBlockFindTools::GetElementID($id, $id, null, null, $this->filter);
+		if( ! empty( $id ) ){
+
+			// Used to get properties
 			$this->filter['ID'] = $id;
-		} else {
-			$this->filter['CODE'] = $id;
-		}
 
-		// Get only one item
-		$this->navParams = ['nPageSize' => 1];
+			// Get only one item
+			$this->navParams = ['nPageSize' => 1];
 
-		$results = $this->readMany();
+			$results = $this->readMany();
 
-		if (!count($results)) {
-			throw new NotFoundHttpException();
+			if (!count($results)) {
+				throw new NotFoundHttpException();
+			}
 		}
 
 		return $results;
