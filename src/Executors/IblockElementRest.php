@@ -577,7 +577,8 @@ class IblockElementRest implements IExecutor {
 		$this->registerOneItemTransformHandler();
 
 		// Set id to filter
-		$id = CIBlockFindTools::GetElementID($id, $id, null, null, $this->filter);
+		$idInt = ( $id == (string) (int) $id ) ? $id : 0; // '1s*' resolves to '1' otherwise
+		$id = CIBlockFindTools::GetElementID($idInt, $id, null, null, $this->filter);
 		if( ! empty( $id ) ){
 
 			// Used to get properties
