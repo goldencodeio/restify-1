@@ -12,7 +12,7 @@ use Exception;
 class SaleBasketRest implements IExecutor {
 	use RestTrait;
 
-	private $entity = 'spaceonfire\Restify\Entities\BasketTable';
+	private $entity = 'Bitrix\Sale\Internals\BasketTable';
 
 	/**
 	 * SaleBasketRest constructor
@@ -36,9 +36,8 @@ class SaleBasketRest implements IExecutor {
 		$sep = $this->ormNestedSelectSeparator;
 		$this->select = [
 			'*',
-			'PRODUCT'	. $sep => 'PRODUCT',
-			'ELEMENT'	. $sep => 'PRODUCT.IBLOCK',
-			'PRICE_ARR'	. $sep => 'PRICE_ARR',
+			'PRODUCT' . $sep => 'PRODUCT',
+			'ELEMENT' . $sep => 'PRODUCT.IBLOCK',
 		];
 
 		$this->registerBasicTransformHandler();
