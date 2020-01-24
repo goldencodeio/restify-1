@@ -411,6 +411,41 @@ class SaleBasketRest implements IExecutor {
 		return $newItems;
 	}
 
+	// Take some properties of prices from basket table
+	// and put into items of basket to display
+	function putPricePropsFromCatalog( $basketItems ){
+		$priceIds = [];
+		foreach( $basketItems as $key => $basketItem ){
+				if( ! empty( $basketItem[ 'PROVIDER_DATA' ][ 'PRODUCT_PRICE_ID' ] ) ){
+					$priceIds[ $key ] = $basketItem[ 'PROVIDER_DATA' ][ 'PRODUCT_PRICE_ID' ];
+				}
+		}
+
+		$prices = \Bitrix\Catalog\PriceTable::getList( [
+			"select" => ["*"], "filter" => [
+				"=ID" => array_values( $priceIds ),
+			],
+		])->fetchAll();
+		$pricesHash = [];
+		foreach ( $prices as $price ){
+			$id = $price[ 'ID' ];
+			$pricesHash[ $id ] = $price;
+		}
+
+		foreach( $basketItems as $key => $basketItem ){
+			if( ! empty( $basketItem[ 'PROVIDER_DATA' ][ 'PRODUCT_PRICE_ID' ] ) ){
+				$priceId = $basketItem[ 'PROVIDER_DATA' ][ 'PRODUCT_PRICE_ID' ];
+				if( ! empty( $pricesHash[ $priceId ] ) ){
+					$basketItem[ 'PRICE_ARR' ] = $pricesHash[ $priceId ];
+				}
+			}
+
+			$basketItemsNew[ $key ] = $basketItem;
+		}
+
+		return $basketItemsNew;
+	}
+
 	// Take result of basket save on server (e. g., without discounts)
 	// and turn it into a result to display (e. g., with discounts )
 	function getBasketArr(){
@@ -437,6 +472,7 @@ class SaleBasketRest implements IExecutor {
 		if( ! empty ($result[ 'BASKET' ] ) ){
 			$basket = $result[ 'BASKET' ];
 			$basket[ 'ITEMS' ] = self::unserializeProviderData( $basket[ 'ITEMS' ] );
+			$basket[ 'ITEMS' ] = self::putPricePropsFromCatalog( $basket[ 'ITEMS' ] );
 			if( !empty( $basket[ 'ITEMS_ORDER' ] ) ){
 				$itemsOrder = $basket[ 'ITEMS_ORDER' ];
 				$basket[ 'ITEMS' ] = self::sortByItemsOrder(
