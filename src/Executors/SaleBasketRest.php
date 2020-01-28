@@ -457,8 +457,10 @@ class SaleBasketRest implements IExecutor {
 			$j = $basketItemsArrNewCount - ( $i + 1 );
 			if ( ! empty( $catalogItems[ $j ] ) ){
 				if ( ! empty( $catalogItems[ $j ][ 'PRODUCT:QUANTITY' ] ) ){
-					$availableQuantity = $catalogItems[ $j ][ 'PRODUCT:QUANTITY' ];
-					$basketItemsArrNew[ $i ][ 'AVAILABLE' ] = $availableQuantity;
+					if ( empty( $basketItemsArrNew[ $i ][ 'AVAILABLE' ] ) ){
+						$availableQuantity = $catalogItems[ $j ][ 'PRODUCT:QUANTITY' ];
+						$basketItemsArrNew[ $i ][ 'AVAILABLE' ] = $availableQuantity;
+					}
 				}
 			}
 		}
