@@ -446,6 +446,28 @@ class SaleBasketRest implements IExecutor {
 		return $basketItemsNew;
 	}
 
+	// Puts missing info on goods from catalog
+	// info is already taken in $items
+	function putItemsInfoFromCatalog( $basketItemsArr, $catalogItems ){
+		$basketItemsArrNew = self::putPricePropsFromCatalog( $basketItemsArr );
+
+		$basketItemsArrNewCount = count( $basketItemsArrNew );
+		for ( $i = 0; $i < $basketItemsArrNewCount; $i ++ ){
+
+			$j = $basketItemsArrNewCount - ( $i + 1 );
+			if ( ! empty( $catalogItems[ $j ] ) ){
+				if ( ! empty( $catalogItems[ $j ][ 'PRODUCT:QUANTITY' ] ) ){
+					if ( empty( $basketItemsArrNew[ $i ][ 'AVAILABLE' ] ) ){
+						$availableQuantity = $catalogItems[ $j ][ 'PRODUCT:QUANTITY' ];
+						$basketItemsArrNew[ $i ][ 'AVAILABLE' ] = $availableQuantity;
+					}
+				}
+			}
+		}
+
+		return $basketItemsArrNew;
+	}
+
 	// Take result of basket save on server (e. g., without discounts)
 	// and turn it into a result to display (e. g., with discounts )
 	function getBasketArr(){
@@ -472,12 +494,12 @@ class SaleBasketRest implements IExecutor {
 		if( ! empty ($result[ 'BASKET' ] ) ){
 			$basket = $result[ 'BASKET' ];
 			$basket[ 'ITEMS' ] = self::unserializeProviderData( $basket[ 'ITEMS' ] );
-			$basket[ 'ITEMS' ] = self::putPricePropsFromCatalog( $basket[ 'ITEMS' ] );
 			if( !empty( $basket[ 'ITEMS_ORDER' ] ) ){
 				$itemsOrder = $basket[ 'ITEMS_ORDER' ];
 				$basket[ 'ITEMS' ] = self::sortByItemsOrder(
 					$basket[ 'ITEMS' ], $itemsOrder );
 			}
+			$basket[ 'ITEMS' ] = self::putItemsInfoFromCatalog( $basket[ 'ITEMS' ], $items );
 			$result = $basket;
 		}
 
