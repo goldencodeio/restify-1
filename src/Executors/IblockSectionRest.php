@@ -112,6 +112,25 @@ class IblockSectionRest implements IExecutor {
 			throw new NotFoundHttpException();
 		}
 
+		$depthLevel = $results[0][ 'DEPTH_LEVEL' ];
+		$results[0]['IBLOCK_ROOT_SECTION_ID'] = null;
+		if( 1 != $depthLevel ){
+			$result = $results[0];
+
+			$sth = CIBlockSection::GetNavChain(
+							$result['IBLOCK_ID'],
+							$result['IBLOCK_SECTION_ID'],
+							array("ID","DEPTH_LEVEL")
+						);
+			while($sectionArr = $sth->Fetch()){
+				if ($sectionArr['DEPTH_LEVEL'] == 1){
+					$result['IBLOCK_ROOT_SECTION_ID'] = $sectionArr['ID'];
+				}
+			}
+
+			$results[0] = $result;
+		}
+
 		return $results;
 	}
 
