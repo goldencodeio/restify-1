@@ -9,6 +9,7 @@ use CCatalog;
 use CIBlock;
 use CIBlockElement;
 use CIBlockFindTools;
+use CIBlockSection;
 use CPrice;
 use Emonkak\HttpException\AccessDeniedHttpException;
 use Emonkak\HttpException\BadRequestHttpException;
@@ -239,6 +240,26 @@ class IblockElementRest implements IExecutor {
 	}
 
 	// Object method
+	// Gets iBlock's section's  first level (sub-)parent's id
+	// Takes	: Int id of iblock,
+	// 			  Int id of iblock's section
+	// Returns	: Int id of iblock's section's first level (sub-)parent's id
+	protected function getIblockRootSectionId( $blockId, $sectionId ){
+		$id = null;
+
+		$sth = CIBlockSection::GetNavChain(
+			$this->iblockId, $sectionId, ["ID","DEPTH_LEVEL",]
+		);
+		while($sectionArr = $sth->Fetch()){
+			if ($sectionArr['DEPTH_LEVEL'] == 1){
+				$id = $sectionArr['ID'];
+			}
+		}
+
+		return $id;
+	}
+
+	// Object method
 	// Gets iBlock's  properties with GetList()
 	// Takes	: Array[Str] of properties' names,
 	// 			  Array[Str] of properties' values
@@ -303,6 +324,9 @@ class IblockElementRest implements IExecutor {
 		foreach ( $items as $item ){
 			$itemId = $item[ 'ID' ];
 			$item[ 'PRICE' ] = \CCatalogProduct::GetOptimalPrice( $itemId );
+			$item[ 'IBLOCK_ROOT_SECTION_ID' ] = $this->getIblockRootSectionId(
+				$item[ 'IBLOCK_ID' ], $item[ 'IBLOCK_SECTION_ID' ]
+			);
 			$items_new[] = $item;
 		}
 		$items = $items_new;
