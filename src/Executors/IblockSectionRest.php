@@ -118,7 +118,7 @@ class IblockSectionRest implements IExecutor {
 			$result = $results[0];
 
 			$sth = CIBlockSection::GetNavChain(
-				$result[ 'IBLOCK_ID' ], $result[ 'SECTION_ID' ],
+				$result[ 'IBLOCK_ID' ], $result[ 'IBLOCK_SECTION_ID' ],
 				[ "ID", "DEPTH_LEVEL", ]
 			);
 			while($sectionArr = $sth->Fetch()){
