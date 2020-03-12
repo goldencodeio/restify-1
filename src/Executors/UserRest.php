@@ -392,6 +392,14 @@ class UserRest implements IExecutor {
 		$eventType = $event->getEventType();
 		$isWrite = in_array($eventType, ['pre:update', 'pre:delete']);
 
+		if (
+			in_array($eventType, ['pre:create', 'pre:update', 'pre:delete'])
+			&&
+			\Flight::request()->getVar('HTTP_X_FROM_DMZ') !== 'true'
+		) {
+			throw new NotFoundHttpException();
+		}
+
 		if (!$USER->GetID()) {
 			throw new UnauthorizedHttpException();
 		}
