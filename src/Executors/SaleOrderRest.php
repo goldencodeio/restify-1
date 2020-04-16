@@ -240,6 +240,11 @@ class SaleOrderRest implements IExecutor {
 
 		$orderId = $order->getId();
 
+		foreach(GetModuleEvents("sale", "OnBasketOrder", true) as $arEvent)
+		{
+			ExecuteModuleEventEx($arEvent, [$orderId, $fuserId, SITE_ID, false]);
+		}
+
 		return [[
 			'result' => 'ok',
 			'message' => Loc::getMessage('SALE_ORDER_CREATE_SUCCESS', [
