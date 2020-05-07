@@ -130,6 +130,51 @@ class IblockSectionRest implements IExecutor {
 			$results[0] = $result;
 		}
 
+		if( is_array( $results[0][ 'UF_FILTER_TAGS' ] ) ){
+			$uf_ft_ids = $results[0][ 'UF_FILTER_TAGS' ];
+
+
+			$uf_fts = [];
+			$filterEntityId = 'IBLOCK_' . $this->iblockId . '_SECTION';
+			$sth = \CUserTypeEntity::GetList( [], [
+				'ENTITY_ID' => $filterEntityId,
+				'FIELD_NAME' => 'UF_FILTER_TAGS',
+			] );
+			$entitiesCount = $sth->SelectedRowsCount();
+			if( 1 == $entitiesCount ){
+				$userFieldArr = $sth->fetch();
+				if( ( ! empty( $userFieldArr ) )
+					&&
+					( ! empty( $userFieldArr[ 'SETTINGS' ] ) )
+					&&
+					( ! empty( $userFieldArr[ 'SETTINGS' ][ 'IBLOCK_ID' ] ) )
+				){
+					$userFieldIblockId = $userFieldArr[ 'SETTINGS' ][ 'IBLOCK_ID' ];
+					$userFieldFilterTagsSth = \Bitrix\Iblock\ElementTable::getList( [ 'filter' => [
+						'IBLOCK_ID' => $userFieldIblockId,
+						'ID' => $uf_ft_ids,
+					] ] );
+					$filterTags = $userFieldFilterTagsSth->fetchAll();
+					$filterTagsNew = [];
+					foreach ( $filterTags as $filterTag ){
+						list( $code, $name ) = [
+							$filterTag[ 'CODE' ], $filterTag[ 'NAME' ], ];
+
+						$filterTagNew = [ 'CODE' => $code, 'NAME' => $name,
+							'PROPERTY_JSON' => json_encode(
+							$filterTag, JSON_UNESCAPED_UNICODE, 2
+							),
+						];
+
+						$filterTagsNew[] = $filterTagNew;
+					}
+					$results[0][ 'UF_FILTER_TAGS' ] = $filterTagsNew;
+				}
+			}
+		} else {
+			$results[0][ 'UF_FILTER_TAGS' ] = [];
+		}
+
 		return $results;
 	}
 
