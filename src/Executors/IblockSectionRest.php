@@ -150,25 +150,27 @@ class IblockSectionRest implements IExecutor {
 					( ! empty( $userFieldArr[ 'SETTINGS' ][ 'IBLOCK_ID' ] ) )
 				){
 					$userFieldIblockId = $userFieldArr[ 'SETTINGS' ][ 'IBLOCK_ID' ];
-					$userFieldFilterTagsSth = \Bitrix\Iblock\ElementTable::getList( [ 'filter' => [
+					$userFieldFilterTagsSth = \CIBlockElement::GetList( [],
+					[
 						'IBLOCK_ID' => $userFieldIblockId,
 						'ID' => $uf_ft_ids,
-					] ] );
-					$filterTags = $userFieldFilterTagsSth->fetchAll();
-					$filterTagsNew = [];
-					foreach ( $filterTags as $filterTag ){
-						list( $code, $name ) = [
-							$filterTag[ 'CODE' ], $filterTag[ 'NAME' ], ];
-
-						$filterTagNew = [ 'CODE' => $code, 'NAME' => $name,
-							'PROPERTY_JSON' => json_encode(
-							$filterTag, JSON_UNESCAPED_UNICODE, 2
-							),
-						];
-
-						$filterTagsNew[] = $filterTagNew;
+					],
+					false, false,
+					[ 'CODE', 'NAME', 'PROPERTY_JSON',
+					]
+					 );
+					$filterTags = [];
+					while ( $filterTag = $userFieldFilterTagsSth->Fetch() ){
+						if( ! empty( $filterTag[ 'PROPERTY_JSON_VALUE' ] ) ){
+							$propertyJsonValue = $filterTag[ 'PROPERTY_JSON_VALUE' ];
+							foreach ( [ 'PROPERTY_JSON_VALUE', 'PROPERTY_JSON_VALUE_ID', ] as $key ){
+								unset( $filterTag[ $key ] );
+							}
+							$filterTag[ 'PROPERTY_JSON' ] = $propertyJsonValue;
+							$filterTags[] = $filterTag;
+						}
 					}
-					$results[0][ 'UF_FILTER_TAGS' ] = $filterTagsNew;
+					$results[0][ 'UF_FILTER_TAGS' ] = $filterTags;
 				}
 			}
 		} else {
