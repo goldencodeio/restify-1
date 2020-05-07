@@ -94,6 +94,16 @@ class SaleOrderRest implements IExecutor {
 	 * Returns	: Maybe Int user id known as order anon
 	 */
 	private function getUserOrderAnon(){
+		return self::getUserOrderAnonByUserField();
+	}
+
+	/*
+	 * Function
+	 * Gets UserID known as anonymous for order
+	 * Takes	: n/a
+	 * Returns	: Maybe Int user id known as order anon
+	 */
+	public function getUserOrderAnonByUserField(){
 		$userId = null;
 
 		$res = UserTable::getList([
