@@ -130,7 +130,10 @@ class IblockSectionRest implements IExecutor {
 			$results[0] = $result;
 		}
 
-		if( is_array( $results[0][ 'UF_FILTER_TAGS' ] ) ){
+		if( is_array( $results[0][ 'UF_FILTER_TAGS' ] )
+				&&
+			( ! empty( $results[0][ 'UF_FILTER_TAGS' ] ) )
+		){
 			$uf_ft_ids = $results[0][ 'UF_FILTER_TAGS' ];
 
 
@@ -141,10 +144,7 @@ class IblockSectionRest implements IExecutor {
 				'FIELD_NAME' => 'UF_FILTER_TAGS',
 			] );
 			$entitiesCount = $sth->SelectedRowsCount();
-			if( ( ! empty( $uf_ft_ids ) )
-					&&
-					( 1 == $entitiesCount )
-				){
+			if( 1 == $entitiesCount ){
 				$userFieldArr = $sth->fetch();
 				if( ( ! empty( $userFieldArr ) )
 					&&
