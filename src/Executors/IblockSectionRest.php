@@ -141,7 +141,10 @@ class IblockSectionRest implements IExecutor {
 				'FIELD_NAME' => 'UF_FILTER_TAGS',
 			] );
 			$entitiesCount = $sth->SelectedRowsCount();
-			if( 1 == $entitiesCount ){
+			if( ( ! empty( $uf_ft_ids ) )
+					&&
+					( 1 == $entitiesCount )
+				){
 				$userFieldArr = $sth->fetch();
 				if( ( ! empty( $userFieldArr ) )
 					&&
