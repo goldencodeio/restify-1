@@ -252,7 +252,7 @@ class SaleOrderRest implements IExecutor {
 
 		foreach(GetModuleEvents("sale", "OnBasketOrder", true) as $arEvent)
 		{
-			ExecuteModuleEventEx($arEvent, [$orderId, $fuserId, SITE_ID, false]);
+			ExecuteModuleEventEx($arEvent, [$orderId, $fuserId, SITE_ID, true]);
 		}
 
 		return [[
