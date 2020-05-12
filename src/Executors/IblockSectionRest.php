@@ -130,7 +130,10 @@ class IblockSectionRest implements IExecutor {
 			$results[0] = $result;
 		}
 
-		if( is_array( $results[0][ 'UF_FILTER_TAGS' ] ) ){
+		if( is_array( $results[0][ 'UF_FILTER_TAGS' ] )
+				&&
+			( ! empty( $results[0][ 'UF_FILTER_TAGS' ] ) )
+		){
 			$uf_ft_ids = $results[0][ 'UF_FILTER_TAGS' ];
 
 
