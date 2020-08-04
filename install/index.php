@@ -42,6 +42,7 @@ class spaceonfire_restify extends CModule
 				$_SERVER['DOCUMENT_ROOT'] . '/bitrix/components/spaceonfire/restify.main.user' => __DIR__ . '/bitrix/components/spaceonfire/restify.main.user',
 				$_SERVER['DOCUMENT_ROOT'] . '/bitrix/components/spaceonfire/restify.iblock.element' => __DIR__ . '/bitrix/components/spaceonfire/restify.iblock.element',
 				$_SERVER['DOCUMENT_ROOT'] . '/bitrix/components/spaceonfire/restify.iblock.section' => __DIR__ . '/bitrix/components/spaceonfire/restify.iblock.section',
+				$_SERVER['DOCUMENT_ROOT'] . '/bitrix/components/spaceonfire/restify.iblock.cities' => __DIR__ . '/bitrix/components/spaceonfire/restify.iblock.cities',
 				$_SERVER['DOCUMENT_ROOT'] . '/bitrix/components/spaceonfire/restify.sale.basket' => __DIR__ . '/bitrix/components/spaceonfire/restify.sale.basket',
 				$_SERVER['DOCUMENT_ROOT'] . '/bitrix/components/spaceonfire/restify.sale.order' => __DIR__ . '/bitrix/components/spaceonfire/restify.sale.order',
 				$_SERVER['DOCUMENT_ROOT'] . '/bitrix/components/spaceonfire/restify.sale.delivery' => __DIR__ . '/bitrix/components/spaceonfire/restify.sale.delivery',
