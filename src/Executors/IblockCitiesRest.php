@@ -215,6 +215,13 @@ class IblockCitiesRest implements IExecutor {
 	}
 
 	public function readMany() {
+		if(
+			( ! empty( $this->navParams ) )
+				&&
+			is_array ( $this->navParams )
+		){
+			$this->navParams[ 'nPageSize' ] = 20000;
+		}
 
 		// Find in cache first
 		$cacheKey = [ 'call'	=> 'readMany',		'order' 	=> $this->order,
