@@ -111,10 +111,10 @@ abstract class RouterComponent extends \CBitrixComponent {
 		$this->cors();
 		$this->route('POST /', [$this, 'create']);
 		$this->route('GET /', [$this, 'readMany']);
-		$this->route('GET /count', [$this, 'count']);
-		$this->route('GET /@id', [$this, 'readOne']);
-		$this->route('POST /@id', [$this, 'update']);
-		$this->route('DELETE /@id', [$this, 'delete']);
+		$this->route('GET /api/v1/*/count', [$this, 'count']);
+		$this->route('GET /api/v1/*/@id', [$this, 'readOne']);
+		$this->route('POST /api/v1/*/@id', [$this, 'update']);
+		$this->route('DELETE /api/v1/*/@id', [$this, 'delete']);
 		$this->start();
 	}
 
